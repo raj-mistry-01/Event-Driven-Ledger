@@ -1,0 +1,14 @@
+total events : 
+create
+credit
+debit
+
+active 
+suspend
+closure
+
+reversal of payment
+
+reverse credit
+reverse debit
+
