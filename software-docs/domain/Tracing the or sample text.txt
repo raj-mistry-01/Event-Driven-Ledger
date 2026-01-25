@@ -1,13 +1,17 @@
 total events : 
+wallet lifecycle
 create
-credit
-debit
-
 active 
 suspend
 closure
 
-reversal of payment
+wallet
+read
+credit
+debit
+
+
+reversal
 reverse credit
 reverse debit
 
