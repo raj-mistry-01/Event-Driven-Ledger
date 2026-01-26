@@ -1,8 +1,8 @@
-@startuml
+	@startuml
 
 !include <logos/kafka>
 
-title System Design HLD : Event-Driven Ledger
+title System Design HLD : Event-Driven Ledger, 3-Tier Architecture
 
 package "Tier 1 : Client Tier" {
     [Client] as Comp1
@@ -13,9 +13,9 @@ package "Tier 1 : Client Tier" {
 
 package "Tier 2 : Service Tier" {
     package "Command Service" as cmdpkg {
-        [Command_Service] as cmds1
-        [Command_Service] as cmds2
-        [Command_Service] as cmds3
+        [Command Service] as cmds1
+        [Command Service] as cmds2
+        [Command Service] as cmds3
     }
     
     package "Broker" as bkr {
@@ -31,8 +31,8 @@ package "Tier 2 : Service Tier" {
     }
     
     package "Query Service" as qs{
-        [Read_Service] as rs1
-        [Read_Service] as rs2
+        [Read Service] as rs1
+        [Read Service] as rs2
     }
     
     
@@ -65,12 +65,12 @@ bkr --> bspkg : Deliver wallet events
 bkr --> htspkg : Deliver wallet events
 
 
-bspkg --> db2 : Update balance projections
-htspkg --> db3 : Update transaction history projections
+bspkg --> db2 : Update\lbalance projections
+htspkg --> db3 : Update\ltransaction history projections
 
 
-qs --> bspkg : Request current wallet 
-qs --> htspkg : Request transaction history
+qs --> db2 : Request current wallet 
+qs --> db3 : Request transaction history
 
 
 
