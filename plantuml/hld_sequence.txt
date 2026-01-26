@@ -1,0 +1,44 @@
+@startuml
+
+
+title Event-Driven Ledger - Sequence Diagram
+
+actor "Client System" as ac1
+participant "Command Service" as cs
+participant "Balance Service" as bs
+participant "History Service" as hs
+/'participant "Query Service" as qs'/
+participant "Read Service" as rs
+queue "Kafka Event broker" as bkr
+database "Event Store DB" as db1
+database "Balance DB" as db2
+database "History DB" as db3
+
+
+== Command Events ==
+
+ac1 -> cs : wallet events
+cs -> db1 : persist validated events
+db1 --> cs : event persisted
+cs --> ac1 : event accepted
+
+db1 --> bkr : publish stored events\lto event stream
+bkr --> bs : deliver wallet events
+bkr --> hs : deliver wallet events
+bs -> db2 : update balance projections
+hs -> db3 : update transaction history projections
+
+== Query Operations ==
+
+ac1 -> rs : read operations
+
+rs -> db2 : read current balance
+rs -> db3 : read transaction history
+
+db2 --> rs : current balance
+db3 --> rs : transaction history
+
+rs --> ac1 : read query response
+
+
+@enduml
