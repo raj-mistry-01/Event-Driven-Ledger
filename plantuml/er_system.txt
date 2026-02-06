@@ -1,0 +1,65 @@
+@startuml
+
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+title "Event driven ledger : Entity and db tables"
+
+package event #line.dashed{
+entity snapshot {
+  wallet_id : //uuid// [PK]
+  snapshot_version : //integer// [PK]
+  snapshot_state : //json//
+  snapshot_timestamp : //timestamp//
+}
+
+
+entity events {
+  event_id : //uuid// [PK]
+  event_type : //integer//
+  event_payload : //json//
+  event_version : //integer//
+  event_timestamp : //timestamp//
+  wallet_id : //uuid//
+  client_id : //string//
+  client_request_id : //string//
+}
+
+entity processed_commands {
+  event_id : //uuid// [PK]
+  client_id : //string//
+  client_request_id : //string//
+  processed_at : //timestamp//
+}
+}
+
+
+package balance #line.dashed{
+entity wallet {
+  id : //uuid [PK]//
+  balance : //double//
+  status : //integer//
+  updated_at : //timestamp//
+}
+
+entity wallet_aggregate{
+    id : //uuid [PK]//
+    version : //integer//
+}
+}
+
+
+package "history" #line.dashed{
+entity wallet_history {
+  history_id : uuid
+  wallet_id : uuid
+  event_type : integer
+  amount : double
+  reference_event_id : uuid
+}
+}
+
+@enduml
+
+
+@enduml
