@@ -5,14 +5,15 @@ skinparam packageStyle rectangle
 
 title "Event driven ledger : Entity and db tables"
 
+scale 900*900
+
 package event #line.dashed{
 entity snapshot {
   wallet_id : //uuid// [PK]
-  snapshot_version : //integer// [PK]
+  snapshot_version : //integer// 
   snapshot_state : //json//
   snapshot_timestamp : //timestamp//
 }
-
 
 entity events {
   event_id : //uuid// [PK]
@@ -26,40 +27,55 @@ entity events {
 }
 
 entity processed_commands {
-  event_id : //uuid// [PK]
-  client_id : //string//
-  client_request_id : //string//
+  event_id : //uuid// 
+  client_id : //string// [PK]
+  client_request_id : //string// [PK]
   processed_at : //timestamp//
 }
+
+entity wallet_stream_head {
+  wallet_id : //uuid// [PK]
+  last_version : //integer//
+  updated_at : //timestamp//
 }
+
+}
+
 
 
 package balance #line.dashed{
 entity wallet {
-  id : //uuid [PK]//
+  wallet_id : //uuid// [PK]
   balance : //double//
   status : //integer//
   updated_at : //timestamp//
 }
 
-entity wallet_aggregate{
-    id : //uuid [PK]//
-    version : //integer//
+entity balance_projection_progress {
+  wallet_id : //uuid// [PK]
+  last_version : //integer//
+  updated_at : //timestamp//
 }
+
 }
 
 
 package "history" #line.dashed{
 entity wallet_history {
-  history_id : uuid
-  wallet_id : uuid
-  event_type : integer
-  amount : double
-  reference_event_id : uuid
-}
+  history_id : //bigserial// [PK]
+  wallet_id : //uuid//
+  event_type : //integer//
+  amount : //double//
+  reference_event_id : //uuid//
+  created_at : //timestamp//
 }
 
-@enduml
+entity history_projection_progress {
+  wallet_id : //uuid// [PK]
+  last_version : //integer//
+  updated_at : //timestamp//
+}
 
+}
 
 @enduml

@@ -4,17 +4,19 @@ skinparam linetype ortho
 skinparam packageStyle rectangle
 scale 850*600
 
-package Balance #line.dashed{
+package balance #line.dashed{
 entity wallet {
-  id : //uuid [PK]//
+  wallet_id : //uuid// [PK]
   balance : //double//
   status : //integer//
   updated_at : //timestamp//
 }
 
-entity wallet_aggregate{
-    id : //uuid [PK]//
-    version : //integer//
+entity balance_projection_progress {
+  wallet_id : //uuid// [PK]
+  last_version : //integer//
+  updated_at : //timestamp//
 }
+
 }
 @enduml

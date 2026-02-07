@@ -8,7 +8,7 @@ scale 850*600
 package event #line.dashed{
 entity snapshot {
   wallet_id : //uuid// [PK]
-  snapshot_version : //integer// [PK]
+  snapshot_version : //integer// 
   snapshot_state : //json//
   snapshot_timestamp : //timestamp//
 }
@@ -25,11 +25,18 @@ entity events {
 }
 
 entity processed_commands {
-  event_id : //uuid// [PK]
-  client_id : //string//
-  client_request_id : //string//
+  event_id : //uuid// 
+  client_id : //string// [PK]
+  client_request_id : //string// [PK]
   processed_at : //timestamp//
 }
+
+entity wallet_stream_head {
+  wallet_id : //uuid// [PK]
+  last_version : //integer//
+  updated_at : //timestamp//
+}
+
 }
 
 @enduml
