@@ -1,0 +1,22 @@
+@startuml
+
+skinparam linetype ortho
+skinparam packageStyle rectangle
+scale 850*600
+
+package balance #line.dashed{
+entity wallet {
+  wallet_id : //uuid// [PK]
+  balance : //double//
+  status : //integer//
+  updated_at : //timestamp//
+}
+
+entity balance_projection_progress {
+  wallet_id : //uuid// [PK]
+  last_version : //integer//
+  updated_at : //timestamp//
+}
+
+}
+@enduml

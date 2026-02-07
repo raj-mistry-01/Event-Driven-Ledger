@@ -1,0 +1,25 @@
+@startuml
+
+skinparam linetype ortho
+skinparam packageStyle rectangle
+scale 850*600
+
+package "history" #line.dashed{
+entity wallet_history {
+  history_id : //bigserial// [PK]
+  wallet_id : //uuid//
+  event_type : //integer//
+  amount : //double//
+  reference_event_id : //uuid//
+  created_at : //timestamp//
+}
+
+entity history_projection_progress {
+  wallet_id : //uuid// [PK]
+  last_version : //integer//
+  updated_at : //timestamp//
+}
+
+}
+
+@enduml

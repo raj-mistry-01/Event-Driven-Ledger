@@ -1,0 +1,79 @@
+	@startuml
+
+!include <logos/kafka>
+
+title System Design HLD : Event-Driven Ledger, 3-Tier Architecture
+
+package "Tier 1 : Client Tier" {
+    [Client] as Comp1
+}
+
+[Client Service load balancer] as lb1
+[Query Service load balancer] as lb2
+
+package "Tier 2 : Service Tier" {
+    package "Command Service" as cmdpkg {
+        [Command Service] as cmds1
+        [Command Service] as cmds2
+        [Command Service] as cmds3
+    }
+    
+    package "Broker" as bkr {
+        queue "<$kafka>" as kafka
+    }
+    
+    package "Balance Service"  as bspkg{
+        [Balance Service] as bs
+    }
+    
+    package "History Service"  as htspkg{
+        [History Service] as hts
+    }
+    
+    package "Query Service" as qs{
+        [Read Service] as rs1
+        [Read Service] as rs2
+    }
+    
+    
+}
+
+
+package "Tier 3 : Data Tier" {
+    database "PostgreSQL" as db1 {
+        [Event Store] as es
+    }
+    database "PostgreSQL" as db2 {
+        [Balance]
+    }
+    database "PostgreSQL" as db3 {
+        [History]
+    }
+}
+
+Comp1 --> lb1 : Send Command Requests
+Comp1 --> lb2 : Send Query Reqeuests
+
+lb1 --> cmdpkg : Route and distribute command traffic
+lb2 --> qs     : Route and distribute query traffic
+
+cmdpkg --> db1 : Persist validated domain events
+ 
+db1 --> bkr : Publish stored events to event stream
+
+bkr --> bspkg : Deliver wallet events
+bkr --> htspkg : Deliver wallet events
+
+
+bspkg --> db2 : Update\lbalance projections
+htspkg --> db3 : Update\ltransaction history projections
+
+
+qs --> db2 : Request current wallet 
+qs --> db3 : Request transaction history
+
+
+
+
+
+@enduml
