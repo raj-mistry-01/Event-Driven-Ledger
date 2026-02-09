@@ -24,8 +24,21 @@ entity events {
   client_request_id : //string//
 }
 
+entity outbox {
+  outbox_id : //uuid// [PK]
+  event_id : //uuid//
+  event_type : //integer//
+  event_payload : //json//
+  event_version : //integer//
+  wallet_id : //uuid//
+  status : //integer//
+  created_at : //timestamp//
+  published_at : //timestamp//
+}
+
 entity processed_commands {
   event_id : //uuid// 
+  wallet_id : //uuid//
   client_id : //string// [PK]
   client_request_id : //string// [PK]
   processed_at : //timestamp//
