@@ -52,8 +52,12 @@ Debit (remove funds from) an ACTIVE by amount.
     - new_version = last_version + 1
 7. Create WalletDebited domain event
     - event_id = new UUID
-    - event_type = WalletDebited
-    - event_payload 
+    - event_type = 5 // WALLET_DEBITED
+    - event_payload = {
+     <br>
+     "amount": amount
+     <br>
+     } 
     - event_version = new_version
     - event_timestamp
     - wallet_id

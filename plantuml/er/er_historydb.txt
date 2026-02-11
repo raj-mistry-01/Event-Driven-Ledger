@@ -8,6 +8,7 @@ package "history" #line.dashed{
 entity wallet_history {
   history_id : //bigserial// [PK]
   wallet_id : //uuid//
+  event_id : //uuid//
   event_type : //integer//
   amount : //double//
   reference_event_id : //uuid//

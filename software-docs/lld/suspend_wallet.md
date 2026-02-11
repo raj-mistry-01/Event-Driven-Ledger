@@ -51,8 +51,12 @@ Required – command must supply the expected current version of the wallet stre
     - If current status is already SUSPENDED → reject with WALLET_ALREADY_SUSPENDED (or treat as idempotent success – policy decision)
 6. Create WalletSuspended domain event
     - event_id = new UUID
-    - event_type = WalletSuspended
-    - event_payload
+    - event_type = 2 // WALLET_SUSPENDED
+    - event_payload = {
+     <br>
+     "status": 2 // SUSPENDED
+     <br>
+     }
     - event_version = 
     - event_timestamp = 
     - wallet_id

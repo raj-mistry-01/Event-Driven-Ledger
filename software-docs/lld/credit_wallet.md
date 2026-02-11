@@ -51,8 +51,12 @@ Credit (add funds to) an ACTIVE wallet by amount.
     - new_version = last_version + 1
 7. Create WalletCredited domain event
     - event_id = new UUID
-    - event_type = WalletCredited
-    - event_payload
+    - event_type = 4 // WALLET_CREDITED
+    - event_payload = {
+        <br>
+        "amount": amount
+        <br>
+      }
     - event_version = new_version
     - event_timestamp 
     - wallet_id

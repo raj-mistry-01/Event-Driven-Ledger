@@ -43,8 +43,12 @@ Required – command must supply the expected current version of the wallet stre
     - If current status is already ACTIVE → reject with WALLET_ALREADY_ACTIVE
 5. Create WalletActivated domain event
     - event_id 
-    - event_type 
-    - event_payload
+    - event_type = 1 // WALLET_ACTIVATED
+    - event_payload = {
+         <br>
+        "status": 1  // ACTIVE
+         <br>
+      }
     - event_version 
     - event_timestamp
     - wallet_id 

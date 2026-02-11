@@ -38,8 +38,13 @@ NONE (this is a creation command – no prior aggregate state exists)
 3. Generate new wallet_id (UUID v4 or equivalent)
 4. Create WalletCreated domain event
    - event_id 
-   - event_type 
-   - event_payload
+   - event_type = 0 // WALLET_CREATED
+   - event_payload = {
+        <br>
+       "initial_amount": initial_amount, <br>
+       "status": 1  // ACTIVE
+        <br>
+     }
    - event_version = 1
    - event_timestamp 
    - wallet_id
@@ -54,7 +59,11 @@ NONE (this is a creation command – no prior aggregate state exists)
    - Create WalletCredited domain event  
      - event_id 
      - event_type 
-     - event_payload 
+     - event_payload = {
+          <br>
+         "amount": initial_amount
+          <br>
+       }
      - event_version = 2
      - event_timestamp 
      - wallet_id

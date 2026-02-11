@@ -73,8 +73,12 @@ Lifecycle events (WalletCreated, WalletActivated, WalletSuspended, WalletClosed)
     - new_version = expected_version + 1
 10. Create reversal domain event
     - event_id = new UUID
-    - event_type = TransactionReversed
-    - event_payload:
+    - event_type = 6 or 7 // WALLET_DEBIT_REVERSAL or WALLET_CREDIT_REVERSAL
+    - event_payload = {
+        <br>
+        "original_event_id":  <br>
+        "amount": amount, <br>
+      }
     - event_version = new_version
     - event_timestamp = current UTC timestamp
     - wallet_id

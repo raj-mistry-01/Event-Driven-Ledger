@@ -49,8 +49,12 @@ Required – command must supply the expected current version of the wallet stre
     - If current status is CLOSED → reject with WALLET_ALREADY_CLOSED
 6. Create WalletClosed domain event
     - event_id = 
-    - event_type = WalletClosed
-    - event_payload
+    - event_type = 3 // WALLET_CLOSED
+     - event_payload = {
+     <br>
+     "status": 3 // CLOSED
+     <br>
+     }
     - event_version 
     - event_timestamp 
     - wallet_id
