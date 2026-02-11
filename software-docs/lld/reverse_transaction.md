@@ -57,8 +57,8 @@ Lifecycle events (WalletCreated, WalletActivated, WalletSuspended, WalletClosed)
 6. Locate original event
     - Fetch event from events table by original_transaction_id
     - Validate:
-        - event.stream_id == wallet_id
-        - event.event_type is WalletCredited or WalletDebited
+        - event.wallet_id == wallet_id
+        - event.event_type is WALLET_CREATED or WALLET_DEBITED
     - If not found or invalid → reject with INVALID_TRANSACTION
 7. Check reversal eligibility
     - Scan replayed events 
@@ -72,7 +72,7 @@ Lifecycle events (WalletCreated, WalletActivated, WalletSuspended, WalletClosed)
 9. Compute new event version
     - new_version = expected_version + 1
 10. Create reversal domain event
-    - event_id = new UUID
+    - event_id = 
     - event_type = 6 or 7 // WALLET_DEBIT_REVERSAL or WALLET_CREDIT_REVERSAL
     - event_payload = {
         <br>
