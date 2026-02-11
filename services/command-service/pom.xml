@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.ledger</groupId>
-	<artifactId>ledger-api-gateway</artifactId>
+	<artifactId>command-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>ledger-api-gateway</name>
-	<description>api gateway for client</description>
+	<name>command-service</name>
+	<description>write query cqrs</description>
 	<url/>
 	<licenses>
 		<license/>
@@ -39,24 +39,6 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
-		</dependency>
-
-		<!-- Source: https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-loadbalancer -->
-		<!-- Source: https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-loadbalancer -->
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-loadbalancer</artifactId>
-			<version>5.0.1</version>
-			<scope>compile</scope>
-		</dependency>
-
-
-		<!-- Source: https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-webclient -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webclient</artifactId>
-			<version>4.0.2</version>
-			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 
