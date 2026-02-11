@@ -11,6 +11,19 @@ CREATE TABLE events (
     client_request_id  TEXT NOT NULL
 );
 
+CREATE TABLE outbox_events (
+    outbox_id      UUID PRIMARY KEY,
+    event_id       UUID NOT NULL,
+    wallet_id      UUID NOT NULL,
+    event_version  INTEGER NOT NULL,
+    event_type     INTEGER NOT NULL,
+    event_payload  JSONB NOT NULL,
+    status         SMALLINT NOT NULL,
+    created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+    published_at   TIMESTAMP NULL
+);
+
+
 
 CREATE TABLE snapshot (
     wallet_id           UUID PRIMARY KEY,

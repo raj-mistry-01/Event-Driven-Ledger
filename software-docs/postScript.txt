@@ -1,0 +1,7 @@
+suspend and deactiavte are interchangeably used
+they are not mean by meaning by them here
+both means temporarily stopped wallet.
+
+outbox pattern
+
+add wallet_id in processed command
