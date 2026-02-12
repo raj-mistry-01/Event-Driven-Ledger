@@ -25,5 +25,14 @@ class LoadBalancingTest {
                 100   // concurrency level
                 )
                 .blockLast();
+        Flux.range(1, 1000)
+                .flatMap(i ->
+                                client.get()
+                                        .uri("http://query-service/test/count")
+                                        .retrieve()
+                                        .bodyToMono(String.class),
+                        100   // concurrency level
+                )
+                .blockLast();
     }
 }
