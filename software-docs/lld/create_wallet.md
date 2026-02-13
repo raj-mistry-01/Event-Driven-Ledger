@@ -108,7 +108,6 @@ NONE (this is a creation command – no prior aggregate state exists)
 | Failure Scenario                          | System Behavior                                       | Client Response / HTTP Status      |
 |-------------------------------------------|-------------------------------------------------------|------------------------------------|
 | Duplicate (client_id, client_request_id)  | Return previously stored successful response          | 200 OK (idempotent)                |
-| initial_amount < 0                        | Reject before transaction                             | 400 Bad Request – INVALID_AMOUNT   |
 | Database constraint violation             | Transaction rolled back – no partial writes           | 500 Internal Server Error          |
 | Database unavailable / deadlock           | Transaction fails or never starts                     | 503 Service Unavailable (retryable)|
 | Command service crash after commit        | Events & outbox rows are persisted → eventual publish | Client already received 200 OK     |
@@ -125,18 +124,5 @@ NONE (this is a creation command – no prior aggregate state exists)
   "transaction_id": ""
 }
 ```
-**Command Failure Responses**
-- 400 Bad Request – INVALID_AMOUNT
-```json
-{
-  "error_code": "INVALID_AMOUNT",
-  "message": "Initial amount must be a non-negative integer."
-}
-```
-- 500 Internal Server Error – DATABASE_ERROR
-```json
-{
-  "error_code": "INTERNAL_ERROR",
-  "message": "Please try again later."
-}
-```
+**Common Error Responses**
+

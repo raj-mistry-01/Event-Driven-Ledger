@@ -186,13 +186,6 @@ Lifecycle events (WalletCreated, WalletActivated, WalletSuspended, WalletClosed)
   "message": "Original transaction with id {original_transaction_id} has already been reversed."
 }
 ```
-- 503 Service Unavailable – RETRY_LATER
-```json
-{
-  "error_code": "RETRY_LATER",
-  "message": "High concurrency detected. Please retry the request."
-}
-```
 - 500 Internal Server Error – for unexpected errors
 ```json
 {

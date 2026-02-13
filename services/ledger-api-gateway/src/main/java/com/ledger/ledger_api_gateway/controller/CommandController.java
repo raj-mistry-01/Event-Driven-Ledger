@@ -18,7 +18,6 @@ public class CommandController {
 
     @PostMapping(path = "/wallet/create")
     public Mono<ResponseEntity<String>> testController(@RequestBody String requestBody) {
-        System.out.println("yes");
         return webClient.post()
                 .uri("http://command-service/wallet/create")
                 .contentType(MediaType.APPLICATION_JSON)

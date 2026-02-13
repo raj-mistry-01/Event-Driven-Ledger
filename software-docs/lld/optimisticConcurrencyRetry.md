@@ -60,9 +60,10 @@ end while
 ```
 
 **Error Reponse** : if all retry attempts fail
+- 503 Service Unavailable – RETRY_LATER
 ```json
 {
-  "error": "SERVICE_UNAVAILABLE",
-  "message": "Please retry your request."
+  "error_code": "RETRY_LATER",
+  "message": "Please retry the request."
 }
 ```
