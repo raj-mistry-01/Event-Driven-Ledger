@@ -4,20 +4,20 @@ CREATE TABLE events (
     event_id           UUID PRIMARY KEY,
     wallet_id          UUID NOT NULL,
     event_type         INTEGER NOT NULL,
-    event_payload      JSONB NOT NULL,
+    event_payload      JSONB NULL,
     event_version      INTEGER NOT NULL,
     event_timestamp    TIMESTAMP NOT NULL DEFAULT NOW(),
     client_id          TEXT NOT NULL,
     client_request_id  TEXT NOT NULL
 );
 
-CREATE TABLE outbox_events (
+CREATE TABLE outbox (
     outbox_id      UUID PRIMARY KEY,
     event_id       UUID NOT NULL,
     wallet_id      UUID NOT NULL,
     event_version  INTEGER NOT NULL,
     event_type     INTEGER NOT NULL,
-    event_payload  JSONB NOT NULL,
+    event_payload  JSONB NULL,
     status         SMALLINT NOT NULL,
     created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
     published_at   TIMESTAMP NULL
@@ -34,6 +34,7 @@ CREATE TABLE snapshot (
 
 CREATE TABLE processed_commands (
     event_id           UUID NOT NULL,
+    wallet_id 		   UUID NOT NULL,
     client_id          TEXT NOT NULL,
     client_request_id  TEXT NOT NULL,
     processed_at       TIMESTAMP NOT NULL DEFAULT NOW(),
