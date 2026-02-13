@@ -1,5 +1,6 @@
 package com.ledger.ledger_api_gateway.controller;
 
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -15,11 +16,16 @@ public class CommandController {
         this.webClient = builder.build();
     }
 
-    @GetMapping("/wallets")
-    public Mono<ResponseEntity<String>> testController() {
-        return webClient.get()
-                .uri("http://command-service/test/ping")
+    @PostMapping(path = "/wallet/create")
+    public Mono<ResponseEntity<String>> testController(@RequestBody String requestBody) {
+        System.out.println("yes");
+        return webClient.post()
+                .uri("http://command-service/wallet/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(requestBody)
                 .retrieve()
                 .toEntity(String.class);
     }
+
+
 }
