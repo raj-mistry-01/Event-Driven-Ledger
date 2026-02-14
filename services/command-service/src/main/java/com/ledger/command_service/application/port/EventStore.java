@@ -17,4 +17,5 @@ public interface EventStore {
 
     List<AggregateEvent> loadEventsForSnapshot(UUID walletId, int version);
 
+    int readCurrentVersion(UUID uuid);
 }

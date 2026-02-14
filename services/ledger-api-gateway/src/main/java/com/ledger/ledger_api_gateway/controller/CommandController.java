@@ -17,7 +17,7 @@ public class CommandController {
     }
 
     @PostMapping(path = "/wallet/create")
-    public Mono<ResponseEntity<String>> testController(@RequestBody String requestBody) {
+    public Mono<ResponseEntity<String>> createController(@RequestBody String requestBody) {
         return webClient.post()
                 .uri("http://command-service/wallet/create")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -26,5 +26,13 @@ public class CommandController {
                 .toEntity(String.class);
     }
 
-
+    @PostMapping(path = "/wallet/suspend")
+    public Mono<ResponseEntity<String>> suspendController(@RequestBody String requestBody) {
+        return webClient.post()
+                .uri("http://command-service/wallet/suspend")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(requestBody)
+                .retrieve()
+                .toEntity(String.class);
+    }
 }

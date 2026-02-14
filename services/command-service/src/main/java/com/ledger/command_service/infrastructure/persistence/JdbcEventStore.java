@@ -120,7 +120,7 @@ public class JdbcEventStore implements EventStore {
 
 
 
-    private int readCurrentVersion(UUID walletId) {
+    public int readCurrentVersion(UUID walletId) {
         Integer version = jdbc.sql("""
                 SELECT last_version
                 FROM wallet_stream_head
