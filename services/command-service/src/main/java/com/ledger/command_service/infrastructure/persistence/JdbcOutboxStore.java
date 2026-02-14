@@ -21,7 +21,6 @@ public class JdbcOutboxStore implements OutboxStore {
 
     @Override
     public void save(List<StoredEvent> events) {
-
         for (StoredEvent event : events) {
 
             jdbc.sql("""

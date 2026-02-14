@@ -11,7 +11,6 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Objects;
 
 public final class WalletAggregate {
 

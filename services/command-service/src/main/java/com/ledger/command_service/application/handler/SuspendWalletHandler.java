@@ -8,6 +8,7 @@ import com.ledger.command_service.domain.aggregate.WalletAggregate;
 import com.ledger.command_service.domain.command.SuspendWalletCommand;
 import com.ledger.command_service.domain.enums.WalletStatus;
 import com.ledger.command_service.domain.state.SnapshotState;
+import com.ledger.command_service.infrastructure.snapshot.SnapshotPolicy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,17 +24,20 @@ public class SuspendWalletHandler {
     private final SnapshotStore snapshotStore;
     private final OutboxStore outboxStore;
     private final ProcessedCommandStore processedCommandStore;
+    private final SnapshotPolicy snapshotPolicy;
 
     public SuspendWalletHandler(
             EventStore eventStore,
             SnapshotStore snapshotStore,
             OutboxStore outboxStore,
-            ProcessedCommandStore processedCommandStore
+            ProcessedCommandStore processedCommandStore,
+            SnapshotPolicy snapshotPolicy
     ) {
         this.eventStore = eventStore;
         this.snapshotStore = snapshotStore;
         this.outboxStore = outboxStore;
         this.processedCommandStore = processedCommandStore;
+        this.snapshotPolicy = snapshotPolicy;
     }
 
     @Transactional
@@ -80,7 +84,6 @@ public class SuspendWalletHandler {
         SnapshotState currentState =
                 WalletAggregate.applyEvents(baseState, events);
 
-        System.out.println(currentState.status());
 
         // 5️⃣ Business validation
         if (currentState.status() == WalletStatus.CLOSED) {
@@ -90,6 +93,8 @@ public class SuspendWalletHandler {
         if (currentState.status() == WalletStatus.SUSPENDED) {
             throw new WalletAlreadySuspendedException();
         }
+
+        System.out.println(currentState.status());
 
         // 6️⃣ Create WalletSuspended event
         UUID eventId = UUID.randomUUID();
@@ -112,6 +117,12 @@ public class SuspendWalletHandler {
                 command.walletId(),
                 currentVersion,
                 newEvents
+        );
+
+        snapshotPolicy.maybeSnapshot(
+                command.walletId(),
+                currentVersion + 1,
+                currentState.withStatus(WalletStatus.SUSPENDED)
         );
 
         // 8️⃣ Outbox

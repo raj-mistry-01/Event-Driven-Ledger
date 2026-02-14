@@ -34,7 +34,6 @@ public class CreateWalletHandler {
 
     @Transactional
     public CreateWalletResponse handle(CreateWalletCommand command) throws Exception {
-
         Optional<ProcessedCommand> alreadyProcessed =
                 processedCommandStore.find(
                         command.clientId(),
@@ -50,7 +49,9 @@ public class CreateWalletHandler {
         }
 
 
+
         String payload = null;
+
 
         UUID eventId = UUID.randomUUID();
         UUID walletID = UUID.randomUUID();
@@ -66,6 +67,9 @@ public class CreateWalletHandler {
                 command.clientRequestId()
         );
 
+
+
+
         List<StoredEvent> events = List.of(storedEvent);
 
         eventStore.appendEvents(
@@ -74,7 +78,10 @@ public class CreateWalletHandler {
                 events
         );
 
+
         outboxStore.save(events);
+
+        System.out.println("yes3.5");
 
         processedCommandStore.markProcessed(
                 command.clientId(),
@@ -82,6 +89,7 @@ public class CreateWalletHandler {
                 walletID,
                 storedEvent.eventId()
         );
+
 
         return new CreateWalletResponse(
                 walletID,

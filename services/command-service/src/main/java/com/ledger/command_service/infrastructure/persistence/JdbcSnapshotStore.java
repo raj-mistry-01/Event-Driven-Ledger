@@ -1,13 +1,15 @@
 package com.ledger.command_service.infrastructure.persistence;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledger.command_service.application.port.SnapshotStore;
 import com.ledger.command_service.domain.state.SnapshotState;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
-import tools.jackson.databind.ObjectMapper;
+
 
 import java.util.Optional;
 import java.util.UUID;
+
 
 @Repository
 public class JdbcSnapshotStore implements SnapshotStore {
@@ -31,17 +33,20 @@ public class JdbcSnapshotStore implements SnapshotStore {
                 """)
                 .param(walletId)
                 .query((rs, rowNum) -> {
-                    SnapshotState state =
-                            objectMapper.readValue(
-                                    rs.getString("snapshot_state"),
-                                    SnapshotState.class
-                            );
+                    try {
+                        SnapshotState state = objectMapper.readValue(
+                                rs.getString("snapshot_state"),
+                                SnapshotState.class
+                        );
+                        return new SnapshotWithVersion(
+                                UUID.fromString(rs.getString("wallet_id")),
+                                rs.getInt("snapshot_version"),
+                                state
+                        );
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to deserialize snapshot state", e);
+                    }
 
-                    return new SnapshotWithVersion(
-                            UUID.fromString(rs.getString("wallet_id")),
-                            rs.getInt("snapshot_version"),
-                            state
-                    );
                 })
                 .optional();
     }

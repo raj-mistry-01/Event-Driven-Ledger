@@ -14,7 +14,7 @@ public interface SnapshotStore {
             SnapshotState state
     ) {}
 
-    Optional<SnapshotWithVersion> load(UUID walletId);
+    Optional<SnapshotWithVersion> load(UUID walletId) ;
 
     void upsert(UUID walletId, int version, SnapshotState state);
 
