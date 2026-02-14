@@ -1,5 +1,6 @@
 package com.ledger.command_service.application.handler;
 
+import com.ledger.command_service.application.dto.CreateWalletResponse;
 import com.ledger.command_service.application.port.EventStore;
 import com.ledger.command_service.application.port.OutboxStore;
 import com.ledger.command_service.application.port.ProcessedCommand;
@@ -32,8 +33,7 @@ public class CreateWalletHandler {
     }
 
     @Transactional
-    public UUID handle(CreateWalletCommand command) throws Exception {
-
+    public CreateWalletResponse handle(CreateWalletCommand command) throws Exception {
         Optional<ProcessedCommand> alreadyProcessed =
                 processedCommandStore.find(
                         command.clientId(),
@@ -41,11 +41,17 @@ public class CreateWalletHandler {
                 );
 
         if (alreadyProcessed.isPresent()) {
-            return alreadyProcessed.get().walletId();
+            return new CreateWalletResponse(
+                    alreadyProcessed.get().walletId(),
+                    alreadyProcessed.get().eventId(),
+                    "ALREADY_PROCESSED"
+            );
         }
 
 
+
         String payload = null;
+
 
         UUID eventId = UUID.randomUUID();
         UUID walletID = UUID.randomUUID();
@@ -61,6 +67,9 @@ public class CreateWalletHandler {
                 command.clientRequestId()
         );
 
+
+
+
         List<StoredEvent> events = List.of(storedEvent);
 
         eventStore.appendEvents(
@@ -69,7 +78,10 @@ public class CreateWalletHandler {
                 events
         );
 
+
         outboxStore.save(events);
+
+        System.out.println("yes3.5");
 
         processedCommandStore.markProcessed(
                 command.clientId(),
@@ -78,6 +90,11 @@ public class CreateWalletHandler {
                 storedEvent.eventId()
         );
 
-        return walletID;
+
+        return new CreateWalletResponse(
+                walletID,
+                storedEvent.eventId(),
+                "CREATED"
+        );
     }
 }

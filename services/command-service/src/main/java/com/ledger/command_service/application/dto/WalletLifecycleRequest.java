@@ -1,11 +1,9 @@
 package com.ledger.command_service.application.dto;
 
-
 import java.util.UUID;
 
-public record CreateWalletResponse(
+public record WalletLifecycleRequest(
         UUID walletId,
-        UUID transactionId,
-        String status
+        String clientId,
+        String clientRequestId
 ) {}
-

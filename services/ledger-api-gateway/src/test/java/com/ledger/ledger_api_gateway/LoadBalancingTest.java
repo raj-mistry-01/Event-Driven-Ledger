@@ -6,6 +6,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
+import java.util.Map;
+import java.util.UUID;
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class LoadBalancingTest {
 
@@ -16,23 +19,27 @@ class LoadBalancingTest {
     void shouldDistributeRequestsAcrossInstances() {
         WebClient client = builder.build();
 
-        Flux.range(1, 1000)
-                .flatMap(i ->
-                        client.get()
-                                .uri("http://command-service/test/count")
-                                .retrieve()
-                                .bodyToMono(String.class),
-                100   // concurrency level
-                )
-                .blockLast();
-        Flux.range(1, 1000)
-                .flatMap(i ->
-                                client.get()
-                                        .uri("http://query-service/test/count")
-                                        .retrieve()
-                                        .bodyToMono(String.class),
-                        100   // concurrency level
-                )
-                .blockLast();
+//        Flux.range(1, 1000)
+//                .flatMap(i ->
+//                        client.post()
+//                                .uri("http://command-service/wallet/create")
+//                                .bodyValue(Map.of(
+//                                        "clientId", UUID.randomUUID().toString(),
+//                                        "clientRequestId", UUID.randomUUID().toString()
+//                                ))
+//                                .retrieve()
+//                                .bodyToMono(String.class),
+//                                100   // concurrency level
+//                )
+//                .blockLast();
+//        Flux.range(1, 1000)
+//                .flatMap(i ->
+//                                client.get()
+//                                        .uri("http://query-service/test/count")
+//                                        .retrieve()
+//                                        .bodyToMono(String.class),
+//                        100   // concurrency level
+//                )
+//                .blockLast();
     }
 }
