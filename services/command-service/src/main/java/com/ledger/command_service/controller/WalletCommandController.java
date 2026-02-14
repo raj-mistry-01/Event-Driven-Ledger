@@ -4,6 +4,7 @@ import com.ledger.command_service.application.dto.CreateWalletRequest;
 import com.ledger.command_service.application.dto.CreateWalletResponse;
 import com.ledger.command_service.application.handler.CreateWalletHandler;
 import com.ledger.command_service.domain.command.CreateWalletCommand;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,14 +31,10 @@ public class WalletCommandController{
                         request.clientRequestId()
                 );
 
-        System.out.println(command.clientId());
-        System.out.println(command.clientRequestId());
 
-        UUID walletId = createWalletHandler.handle(command);
+        CreateWalletResponse  resposne = createWalletHandler.handle(command);
 
-        return ResponseEntity.ok(
-                new CreateWalletResponse(walletId, "CREATED")
-        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(resposne);
     }
 
     @PostMapping(path = "/activate") public String activateHandler(){
@@ -45,5 +42,13 @@ public class WalletCommandController{
         System.out.println("yes");
         return "testing";
     }
+
+    @PostMapping(path = "/suspend") public String suspendHandler(){
+        // call to suspend handler
+        System.out.println("yes");
+        return "testing";
+    }
+
+
 
 }

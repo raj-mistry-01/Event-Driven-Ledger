@@ -17,4 +17,6 @@ public interface ProcessedCommandStore {
             UUID walletId,
             UUID eventId
     );
+
+
 }

@@ -15,5 +15,6 @@ public interface EventStore {
 
     boolean walletStreamExists(UUID wallet_id);
 
+    List<AggregateEvent> loadEventsForSnapshot(UUID walletId, int version);
 
 }

@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record CreateWalletResponse(
         UUID walletId,
+        UUID transactionId,
         String status
 ) {}
 

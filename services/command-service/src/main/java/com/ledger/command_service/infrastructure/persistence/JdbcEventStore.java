@@ -1,5 +1,6 @@
 package com.ledger.command_service.infrastructure.persistence;
 
+import com.ledger.command_service.application.port.AggregateEvent;
 import com.ledger.command_service.application.port.EventStore;
 import com.ledger.command_service.application.port.StoredEvent;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -45,6 +46,23 @@ public class JdbcEventStore implements EventStore {
                         rs.getTimestamp("event_timestamp").toInstant(),
                         rs.getString("client_id"),
                         rs.getString("client_request_id")
+                ))
+                .list();
+    }
+
+    public List<AggregateEvent> loadEventsForSnapshot(UUID walletId, int version) {
+        return jdbc.sql("""
+                SELECT event_type,
+                       event_payload
+                FROM events
+                WHERE wallet_id = ?
+                  AND event_version > ?
+                ORDER BY event_version ASC
+                """)
+                .params(walletId, version)
+                .query((rs, rowNum) -> new AggregateEvent(
+                        rs.getInt("event_type"),
+                        rs.getString("event_payload")
                 ))
                 .list();
     }
