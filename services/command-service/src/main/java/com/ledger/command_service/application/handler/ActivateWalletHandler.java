@@ -18,7 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class SuspendWalletHandler {
+public class ActivateWalletHandler {
 
     private final EventStore eventStore;
     private final SnapshotStore snapshotStore;
@@ -26,7 +26,7 @@ public class SuspendWalletHandler {
     private final ProcessedCommandStore processedCommandStore;
     private final SnapshotPolicy snapshotPolicy;
 
-    public SuspendWalletHandler(
+    public ActivateWalletHandler(
             EventStore eventStore,
             SnapshotStore snapshotStore,
             OutboxStore outboxStore,
@@ -53,7 +53,7 @@ public class SuspendWalletHandler {
         if (alreadyProcessed.isPresent()) {
             return new WalletLifecycleResponse(
                     alreadyProcessed.get().eventId(),
-                    WalletStatus.SUSPENDED.name()
+                    WalletStatus.ACTIVE.name()
             );
         }
 
@@ -90,8 +90,8 @@ public class SuspendWalletHandler {
             throw new WalletClosedException(command.walletId().toString());
         }
 
-        if (currentState.status() == WalletStatus.SUSPENDED) {
-            throw new WalletAlreadySuspendedException();
+        if (currentState.status() == WalletStatus.ACTIVE) {
+            throw new WalletAlreadyActiveExcpetion();
         }
 
         System.out.println(currentState.status());
@@ -102,7 +102,7 @@ public class SuspendWalletHandler {
         StoredEvent suspendedEvent = new StoredEvent(
                 eventId,
                 command.walletId(),
-                2, // WALLET_SUSPENDED
+                1, // WALLET_ACTIVATED
                 null,
                 currentVersion + 1,
                 Instant.now(),
@@ -122,7 +122,7 @@ public class SuspendWalletHandler {
         snapshotPolicy.maybeSnapshot(
                 command.walletId(),
                 currentVersion + 1,
-                currentState.withStatus(WalletStatus.SUSPENDED)
+                currentState.withStatus(WalletStatus.ACTIVE)
         );
 
         // 8️⃣ Outbox
@@ -138,7 +138,7 @@ public class SuspendWalletHandler {
 
         return new WalletLifecycleResponse(
                 eventId,
-                WalletStatus.SUSPENDED.name()
+                WalletStatus.ACTIVE.name()
         );
     }
 }
