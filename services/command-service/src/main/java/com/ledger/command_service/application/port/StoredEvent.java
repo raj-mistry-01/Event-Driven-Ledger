@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 
-public record StoredEvent(
+public record StoredEvent (
         UUID eventId,
         UUID walletId,
         int eventType,

@@ -94,12 +94,11 @@ public class ActivateWalletHandler {
             throw new WalletAlreadyActiveExcpetion();
         }
 
-        System.out.println(currentState.status());
 
         // 6️⃣ Create WalletSuspended event
         UUID eventId = UUID.randomUUID();
 
-        StoredEvent suspendedEvent = new StoredEvent(
+        StoredEvent activatedEvent = new StoredEvent(
                 eventId,
                 command.walletId(),
                 1, // WALLET_ACTIVATED
@@ -110,7 +109,15 @@ public class ActivateWalletHandler {
                 command.clientRequestId()
         );
 
-        List<StoredEvent> newEvents = List.of(suspendedEvent);
+        AggregateEvent newAggregateEvent = new AggregateEvent(
+                activatedEvent.eventType(), // WALLET_ACTIVATED
+                activatedEvent.eventPayload()
+        );
+
+
+
+        List<StoredEvent> newEvents = List.of(activatedEvent);
+        List<AggregateEvent> newAggregateEventList = List.of(newAggregateEvent);
 
         // 7️⃣ Persist event
         eventStore.appendEvents(
@@ -119,10 +126,12 @@ public class ActivateWalletHandler {
                 newEvents
         );
 
+        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
+
         snapshotPolicy.maybeSnapshot(
                 command.walletId(),
                 currentVersion + 1,
-                currentState.withStatus(WalletStatus.ACTIVE)
+                postState
         );
 
         // 8️⃣ Outbox

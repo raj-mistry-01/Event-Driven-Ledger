@@ -94,7 +94,6 @@ public class SuspendWalletHandler {
             throw new WalletAlreadySuspendedException();
         }
 
-        System.out.println(currentState.status());
 
         // 6️⃣ Create WalletSuspended event
         UUID eventId = UUID.randomUUID();
@@ -110,7 +109,17 @@ public class SuspendWalletHandler {
                 command.clientRequestId()
         );
 
+        AggregateEvent newAggregateEvent = new AggregateEvent(
+                suspendedEvent.eventType(), // WALLET_SUSPENDED
+                suspendedEvent.eventPayload()
+        );
+
         List<StoredEvent> newEvents = List.of(suspendedEvent);
+        List<AggregateEvent> newAggregateEventList = List.of(newAggregateEvent);
+
+        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
+
+
 
         // 7️⃣ Persist event
         eventStore.appendEvents(
@@ -122,7 +131,7 @@ public class SuspendWalletHandler {
         snapshotPolicy.maybeSnapshot(
                 command.walletId(),
                 currentVersion + 1,
-                currentState.withStatus(WalletStatus.SUSPENDED)
+                postState
         );
 
         // 8️⃣ Outbox
