@@ -18,7 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class SuspendWalletHandler {
+public class ActivateWalletHandler {
 
     private final EventStore eventStore;
     private final SnapshotStore snapshotStore;
@@ -26,7 +26,7 @@ public class SuspendWalletHandler {
     private final ProcessedCommandStore processedCommandStore;
     private final SnapshotPolicy snapshotPolicy;
 
-    public SuspendWalletHandler(
+    public ActivateWalletHandler(
             EventStore eventStore,
             SnapshotStore snapshotStore,
             OutboxStore outboxStore,
@@ -53,7 +53,7 @@ public class SuspendWalletHandler {
         if (alreadyProcessed.isPresent()) {
             return new WalletLifecycleResponse(
                     alreadyProcessed.get().eventId(),
-                    WalletStatus.SUSPENDED.name()
+                    WalletStatus.ACTIVE.name()
             );
         }
 
@@ -90,18 +90,18 @@ public class SuspendWalletHandler {
             throw new WalletClosedException(command.walletId().toString());
         }
 
-        if (currentState.status() == WalletStatus.SUSPENDED) {
-            throw new WalletAlreadySuspendedException();
+        if (currentState.status() == WalletStatus.ACTIVE) {
+            throw new WalletAlreadyActiveExcpetion();
         }
 
 
         // 6️⃣ Create WalletSuspended event
         UUID eventId = UUID.randomUUID();
 
-        StoredEvent suspendedEvent = new StoredEvent(
+        StoredEvent activatedEvent = new StoredEvent(
                 eventId,
                 command.walletId(),
-                2, // WALLET_SUSPENDED
+                1, // WALLET_ACTIVATED
                 null,
                 currentVersion + 1,
                 Instant.now(),
@@ -110,16 +110,14 @@ public class SuspendWalletHandler {
         );
 
         AggregateEvent newAggregateEvent = new AggregateEvent(
-                suspendedEvent.eventType(), // WALLET_SUSPENDED
-                suspendedEvent.eventPayload()
+                activatedEvent.eventType(), // WALLET_ACTIVATED
+                activatedEvent.eventPayload()
         );
 
-        List<StoredEvent> newEvents = List.of(suspendedEvent);
+
+
+        List<StoredEvent> newEvents = List.of(activatedEvent);
         List<AggregateEvent> newAggregateEventList = List.of(newAggregateEvent);
-
-        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
-
-
 
         // 7️⃣ Persist event
         eventStore.appendEvents(
@@ -127,6 +125,8 @@ public class SuspendWalletHandler {
                 currentVersion,
                 newEvents
         );
+
+        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
 
         snapshotPolicy.maybeSnapshot(
                 command.walletId(),
@@ -147,7 +147,7 @@ public class SuspendWalletHandler {
 
         return new WalletLifecycleResponse(
                 eventId,
-                WalletStatus.SUSPENDED.name()
+                WalletStatus.ACTIVE.name()
         );
     }
 }

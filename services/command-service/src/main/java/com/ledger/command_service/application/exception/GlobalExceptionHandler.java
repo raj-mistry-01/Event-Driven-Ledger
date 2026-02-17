@@ -57,6 +57,14 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of("WALLET_ALREADY_SUSPENDED", ex.getMessage()));
     }
 
+    @ExceptionHandler(WalletAlreadyActiveExcpetion.class)
+    public ResponseEntity<ErrorResponse> handlerAlreadyActive(WalletAlreadyActiveExcpetion ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of("WALLET_ALREADY_ACTIVE", ex.getMessage()));
+    }
+
+
+
     @ExceptionHandler(WalletAlreadyClosedException.class)
     public ResponseEntity<ErrorResponse> handleAlreadyClosed(WalletAlreadyClosedException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
