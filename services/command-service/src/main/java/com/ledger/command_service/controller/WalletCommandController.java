@@ -5,6 +5,7 @@ import com.ledger.command_service.application.dto.CreateWalletResponse;
 import com.ledger.command_service.application.dto.WalletLifecycleRequest;
 import com.ledger.command_service.application.dto.WalletLifecycleResponse;
 import com.ledger.command_service.application.handler.ActivateWalletHandler;
+import com.ledger.command_service.application.handler.CloseWalletHandler;
 import com.ledger.command_service.application.handler.CreateWalletHandler;
 import com.ledger.command_service.application.handler.SuspendWalletHandler;
 import com.ledger.command_service.domain.command.CreateWalletCommand;
@@ -20,15 +21,18 @@ public class WalletCommandController{
     private final CreateWalletHandler createWalletHandler;
     private final ActivateWalletHandler activateHandler;
     private final SuspendWalletHandler suspendWalletHandler;
+    private final CloseWalletHandler closeWalletHandler;
 
     public WalletCommandController(
             CreateWalletHandler createWalletHandler,
             ActivateWalletHandler activateHandler,
-            SuspendWalletHandler suspendWalletHandler
+            SuspendWalletHandler suspendWalletHandler,
+            CloseWalletHandler closeWalletHandler
     ) {
         this.createWalletHandler = createWalletHandler;
         this.activateHandler = activateHandler;
         this.suspendWalletHandler = suspendWalletHandler;
+        this.closeWalletHandler = closeWalletHandler;
     }
 
     @PostMapping("/create")
@@ -83,4 +87,22 @@ public class WalletCommandController{
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+
+    @PostMapping(path = "/close")
+    public ResponseEntity<WalletLifecycleResponse> closeHandler(
+            @RequestBody WalletLifecycleRequest request
+    ) throws Exception{
+        WalletLifeCycleCommand command =
+                new WalletLifeCycleCommand(
+                        request.walletId(),
+                        request.clientId(),
+                        request.clientRequestId()
+                );
+
+
+        WalletLifecycleResponse response =
+                closeWalletHandler.handle(command);
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
 }
