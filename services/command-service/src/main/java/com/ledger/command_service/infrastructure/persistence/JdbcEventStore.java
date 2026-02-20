@@ -3,6 +3,8 @@ package com.ledger.command_service.infrastructure.persistence;
 import com.ledger.command_service.application.port.AggregateEvent;
 import com.ledger.command_service.application.port.EventStore;
 import com.ledger.command_service.application.port.StoredEvent;
+import org.apache.catalina.util.ToStringUtil;
+import org.postgresql.util.PGobject;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,34 +89,51 @@ public class JdbcEventStore implements EventStore {
 
         int nextVersion = currentVersion;
 
+
+
+
         for (StoredEvent event : newEvents) {
             nextVersion++;
 
-            jdbc.sql("""
-                    INSERT INTO events (
-                        event_id,
-                        wallet_id,
-                        event_type,
-                        event_payload,
-                        event_version,
-                        event_timestamp,
-                        client_id,
-                        client_request_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """)
-                    .params(
-                            event.eventId(),
-                            walletId,
-                            event.eventType(),
-                            event.eventPayload(),
-                            nextVersion,
-                            Timestamp.from(event.eventTimestamp()),
-                            event.clientId(),
-                            event.clientRequestId()
-                    )
-                    .update();
-        }
 
+            try {
+                jdbc.sql("""
+            INSERT INTO events (
+                event_id,
+                wallet_id,
+                event_type,
+                event_payload,
+                event_version,
+                event_timestamp,
+                client_id,
+                client_request_id
+            ) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?)
+            """)
+                        .params(
+                                event.eventId(),
+                                walletId,
+                                event.eventType(),
+                                event.eventPayload(),
+                                nextVersion,
+                                Timestamp.from(event.eventTimestamp()),
+                                event.clientId(),
+                                event.clientRequestId()
+                        )
+                        .update();
+
+            } catch (Exception e) {
+
+                e.printStackTrace();
+
+                Throwable root = e.getCause();
+
+                while(root != null){
+                    System.out.println("CAUSE -> " + root.getMessage());
+                    root = root.getCause();
+                }
+
+            }
+        }
         upsertStreamHead(walletId, nextVersion);
     }
 
@@ -163,3 +182,4 @@ public class JdbcEventStore implements EventStore {
     }
 
 }
+

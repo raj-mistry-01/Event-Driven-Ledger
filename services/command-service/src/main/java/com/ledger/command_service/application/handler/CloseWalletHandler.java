@@ -6,6 +6,7 @@ import com.ledger.command_service.application.dto.WalletLifecycleResponse;
 import com.ledger.command_service.application.exception.*;
 import com.ledger.command_service.domain.aggregate.WalletAggregate;
 import com.ledger.command_service.domain.command.WalletLifeCycleCommand;
+import com.ledger.command_service.domain.enums.EventType;
 import com.ledger.command_service.domain.enums.WalletStatus;
 import com.ledger.command_service.domain.state.SnapshotState;
 import com.ledger.command_service.infrastructure.snapshot.SnapshotPolicy;
@@ -93,14 +94,15 @@ public class CloseWalletHandler {
 
 
 
-        // 6️⃣ Create WalletSuspended event
+        // 6️⃣ Create WalletClose event
         UUID eventId = UUID.randomUUID();
+        String eventPayload = null;
 
         StoredEvent closedEvent = new StoredEvent(
                 eventId,
                 command.walletId(),
-                3, // WALLET_CLOSED
-                null,
+                EventType.WALLET_CLOSED.code(), // WALLET_CLOSED
+                eventPayload,
                 currentVersion + 1,
                 Instant.now(),
                 command.clientId(),

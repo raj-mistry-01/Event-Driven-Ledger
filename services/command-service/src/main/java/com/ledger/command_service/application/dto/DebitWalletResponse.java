@@ -3,8 +3,10 @@ package com.ledger.command_service.application.dto;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public record WalletLifecycleRequest(
+public record DebitWalletResponse(
         UUID walletId,
-        String clientId,
-        String clientRequestId
-) {}
+        UUID transactionId,
+        BigDecimal debitedAmoun,
+        String status
+) {
+}

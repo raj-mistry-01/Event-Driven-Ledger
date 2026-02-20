@@ -7,6 +7,7 @@ import com.ledger.command_service.application.port.ProcessedCommand;
 import com.ledger.command_service.application.port.ProcessedCommandStore;
 import com.ledger.command_service.application.port.StoredEvent;
 import com.ledger.command_service.domain.command.CreateWalletCommand;
+import com.ledger.command_service.domain.enums.EventType;
 import com.ledger.command_service.domain.enums.WalletStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,19 +50,15 @@ public class CreateWalletHandler {
             );
         }
 
-
-
-        String payload = null;
-
-
         UUID eventId = UUID.randomUUID();
         UUID walletID = UUID.randomUUID();
+        String eventPayload = null;
 
         StoredEvent storedEvent = new StoredEvent(
                 eventId,           // eventId
                 walletID,          // walletId
-                0,                            // eventType (0 = WALLET_CREATED)
-                payload,                      // eventPayload (json)
+                EventType.WALLET_CREATED.code(),                            // eventType (0 = WALLET_CREATED)
+                eventPayload,                      // eventPayload (json)
                 1,                            // eventVersion (first event)
                 Instant.now(),                // eventTimestamp
                 command.clientId(),

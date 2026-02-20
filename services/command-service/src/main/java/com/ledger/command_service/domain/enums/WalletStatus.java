@@ -6,5 +6,7 @@ public enum WalletStatus {
     CREATED,
     ACTIVE,
     SUSPENDED,
-    CLOSED()
+    CLOSED,
+    CREDITED,
+    DEBITED
 }

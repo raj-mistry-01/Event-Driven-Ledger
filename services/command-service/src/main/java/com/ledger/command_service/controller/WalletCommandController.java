@@ -1,14 +1,9 @@
 package com.ledger.command_service.controller;
 
-import com.ledger.command_service.application.dto.CreateWalletRequest;
-import com.ledger.command_service.application.dto.CreateWalletResponse;
-import com.ledger.command_service.application.dto.WalletLifecycleRequest;
-import com.ledger.command_service.application.dto.WalletLifecycleResponse;
-import com.ledger.command_service.application.handler.ActivateWalletHandler;
-import com.ledger.command_service.application.handler.CloseWalletHandler;
-import com.ledger.command_service.application.handler.CreateWalletHandler;
-import com.ledger.command_service.application.handler.SuspendWalletHandler;
+import com.ledger.command_service.application.dto.*;
+import com.ledger.command_service.application.handler.*;
 import com.ledger.command_service.domain.command.CreateWalletCommand;
+import com.ledger.command_service.domain.command.CreditWalletCommand;
 import com.ledger.command_service.domain.command.WalletLifeCycleCommand;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,17 +17,20 @@ public class WalletCommandController{
     private final ActivateWalletHandler activateHandler;
     private final SuspendWalletHandler suspendWalletHandler;
     private final CloseWalletHandler closeWalletHandler;
+    private final CreditWalletHandler creditWalletHandler;
 
     public WalletCommandController(
             CreateWalletHandler createWalletHandler,
             ActivateWalletHandler activateHandler,
             SuspendWalletHandler suspendWalletHandler,
-            CloseWalletHandler closeWalletHandler
+            CloseWalletHandler closeWalletHandler,
+            CreditWalletHandler creditWalletHandler
     ) {
         this.createWalletHandler = createWalletHandler;
         this.activateHandler = activateHandler;
         this.suspendWalletHandler = suspendWalletHandler;
         this.closeWalletHandler = closeWalletHandler;
+        this.creditWalletHandler = creditWalletHandler;
     }
 
     @PostMapping("/create")
@@ -104,5 +102,25 @@ public class WalletCommandController{
                 closeWalletHandler.handle(command);
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @PostMapping(path = "/credit")
+    public ResponseEntity<CreditWalletResponse> creditHandler(
+            @RequestBody CreditWalletRequest request
+    ) throws Exception{
+        CreditWalletCommand command =
+                new CreditWalletCommand(
+                        request.walletId(),
+                        request.creditAmount(),
+                        request.clientId(),
+                        request.clientRequestId()
+                );
+
+
+        CreditWalletResponse response =
+                creditWalletHandler.handle(command);
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+//        return ResponseEntity.status(HttpStatus.OK).body("yes");
     }
 }
