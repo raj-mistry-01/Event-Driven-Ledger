@@ -1,11 +1,13 @@
 
 package com.ledger.command_service.application.handler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ledger.command_service.application.dto.AmountPayload;
+import com.ledger.command_service.application.dto.CreditWalletResponse;
 import com.ledger.command_service.application.port.*;
-import com.ledger.command_service.application.dto.WalletLifecycleResponse;
 import com.ledger.command_service.application.exception.*;
 import com.ledger.command_service.domain.aggregate.WalletAggregate;
-import com.ledger.command_service.domain.command.WalletLifeCycleCommand;
+import com.ledger.command_service.domain.command.CreditWalletCommand;
 import com.ledger.command_service.domain.enums.EventType;
 import com.ledger.command_service.domain.enums.WalletStatus;
 import com.ledger.command_service.domain.state.SnapshotState;
@@ -13,37 +15,40 @@ import com.ledger.command_service.infrastructure.snapshot.SnapshotPolicy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class ActivateWalletHandler {
+public class CreditWalletHandler {
 
     private final EventStore eventStore;
     private final SnapshotStore snapshotStore;
     private final OutboxStore outboxStore;
     private final ProcessedCommandStore processedCommandStore;
     private final SnapshotPolicy snapshotPolicy;
+    private final ObjectMapper objectMapper;
 
-    public ActivateWalletHandler(
+    public CreditWalletHandler(
             EventStore eventStore,
             SnapshotStore snapshotStore,
             OutboxStore outboxStore,
             ProcessedCommandStore processedCommandStore,
-            SnapshotPolicy snapshotPolicy
+            SnapshotPolicy snapshotPolicy,
+            ObjectMapper objectMapper
     ) {
         this.eventStore = eventStore;
         this.snapshotStore = snapshotStore;
         this.outboxStore = outboxStore;
         this.processedCommandStore = processedCommandStore;
         this.snapshotPolicy = snapshotPolicy;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
-    public WalletLifecycleResponse handle(WalletLifeCycleCommand command) {
-
+    public CreditWalletResponse handle(CreditWalletCommand command) {
         // 1️⃣ Idempotency check
         Optional<ProcessedCommand> alreadyProcessed =
                 processedCommandStore.find(
@@ -52,10 +57,18 @@ public class ActivateWalletHandler {
                 );
 
         if (alreadyProcessed.isPresent()) {
-            return new WalletLifecycleResponse(
+            return new CreditWalletResponse(
+                    alreadyProcessed.get().walletId(),
                     alreadyProcessed.get().eventId(),
-                    WalletStatus.ACTIVE.name()
+                    command.creditAmount(),
+                    WalletStatus.CREDITED.name()
             );
+        }
+
+
+
+        if(command.creditAmount() == null || command.creditAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidAmountException();
         }
 
         // 2️⃣ Wallet existence + current version
@@ -91,19 +104,27 @@ public class ActivateWalletHandler {
             throw new WalletClosedException(command.walletId().toString());
         }
 
-        if (currentState.status() == WalletStatus.ACTIVE) {
-            throw new WalletAlreadyActiveExcpetion();
+        if (currentState.status() == WalletStatus.SUSPENDED) {
+            throw new WalletSuspendedException(command.walletId().toString());
         }
 
 
-        // 6️⃣ Create WalletSuspended event
+        // 6️⃣ Create WalletCredit event
         UUID eventId = UUID.randomUUID();
-        String eventPayload = null;
+        AmountPayload payload = new AmountPayload(command.creditAmount());
+        String eventPayload;
+        try{
+            eventPayload = objectMapper.writeValueAsString(payload);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Failed to serialize event payload", e);
+        }
 
-        StoredEvent activatedEvent = new StoredEvent(
+
+        StoredEvent creditEvent = new StoredEvent(
                 eventId,
                 command.walletId(),
-                EventType.WALLET_ACTIVATED.code(), // WALLET_ACTIVATED
+                EventType.WALLET_CREDITED.code(), // WALLET_CREDITED
                 eventPayload,
                 currentVersion + 1,
                 Instant.now(),
@@ -111,15 +132,17 @@ public class ActivateWalletHandler {
                 command.clientRequestId()
         );
 
+
         AggregateEvent newAggregateEvent = new AggregateEvent(
-                activatedEvent.eventType(), // WALLET_ACTIVATED
-                activatedEvent.eventPayload()
+                creditEvent.eventType(), // WALLET_CREDITED
+                creditEvent.eventPayload()
         );
 
-
-
-        List<StoredEvent> newEvents = List.of(activatedEvent);
+        List<StoredEvent> newEvents = List.of(creditEvent);
         List<AggregateEvent> newAggregateEventList = List.of(newAggregateEvent);
+
+        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
+
 
         // 7️⃣ Persist event
         eventStore.appendEvents(
@@ -127,8 +150,6 @@ public class ActivateWalletHandler {
                 currentVersion,
                 newEvents
         );
-
-        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
 
         snapshotPolicy.maybeSnapshot(
                 command.walletId(),
@@ -147,9 +168,12 @@ public class ActivateWalletHandler {
                 eventId
         );
 
-        return new WalletLifecycleResponse(
+
+        return new CreditWalletResponse(
+                command.walletId(),
                 eventId,
-                WalletStatus.ACTIVE.name()
+                command.creditAmount(),
+                WalletStatus.CREDITED.name()
         );
     }
 }

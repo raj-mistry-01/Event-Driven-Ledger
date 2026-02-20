@@ -24,31 +24,34 @@ public class JdbcSnapshotStore implements SnapshotStore {
 
     @Override
     public Optional<SnapshotWithVersion> load(UUID walletId) {
-        return jdbc.sql("""
-                SELECT wallet_id,
-                       snapshot_version,
-                       snapshot_state
-                FROM snapshot
-                WHERE wallet_id = ?
-                """)
-                .param(walletId)
-                .query((rs, rowNum) -> {
-                    try {
-                        SnapshotState state = objectMapper.readValue(
-                                rs.getString("snapshot_state"),
-                                SnapshotState.class
-                        );
-                        return new SnapshotWithVersion(
-                                UUID.fromString(rs.getString("wallet_id")),
-                                rs.getInt("snapshot_version"),
-                                state
-                        );
-                    } catch (Exception e) {
-                        throw new RuntimeException("Failed to deserialize snapshot state", e);
-                    }
-
-                })
-                .optional();
+        try {
+            return jdbc.sql("""
+                    SELECT wallet_id,
+                           snapshot_version,
+                           snapshot_state
+                    FROM snapshot
+                    WHERE wallet_id = ?
+                    """)
+                    .param(walletId)
+                    .query((rs, rowNum) -> {
+                        try {
+                            SnapshotState state = objectMapper.readValue(
+                                    rs.getString("snapshot_state"),
+                                    SnapshotState.class
+                            );
+                            return new SnapshotWithVersion(
+                                    UUID.fromString(rs.getString("wallet_id")),
+                                    rs.getInt("snapshot_version"),
+                                    state
+                            );
+                        } catch (Exception e) {
+                            throw new RuntimeException("Failed to deserialize snapshot state", e);
+                        }
+                    })
+                    .optional();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load snapshot", e);
+        }
     }
 
     @Override
@@ -63,7 +66,7 @@ public class JdbcSnapshotStore implements SnapshotStore {
                         snapshot_state,
                         snapshot_timestamp
                     )
-                    VALUES (?, ?, ?, now())
+                    VALUES (?, ?, ?::jsnob, now())
                     ON CONFLICT (wallet_id)
                     DO UPDATE SET
                         snapshot_version   = EXCLUDED.snapshot_version,

@@ -1,5 +1,7 @@
 package com.ledger.command_service.application.port;
 
+import org.postgresql.util.PGobject;
+
 import java.time.Instant;
 import java.util.UUID;
 

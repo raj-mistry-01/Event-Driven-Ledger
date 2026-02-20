@@ -19,7 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class ActivateWalletHandler {
+public class CloseWalletHandler {
 
     private final EventStore eventStore;
     private final SnapshotStore snapshotStore;
@@ -27,7 +27,7 @@ public class ActivateWalletHandler {
     private final ProcessedCommandStore processedCommandStore;
     private final SnapshotPolicy snapshotPolicy;
 
-    public ActivateWalletHandler(
+    public CloseWalletHandler(
             EventStore eventStore,
             SnapshotStore snapshotStore,
             OutboxStore outboxStore,
@@ -54,7 +54,7 @@ public class ActivateWalletHandler {
         if (alreadyProcessed.isPresent()) {
             return new WalletLifecycleResponse(
                     alreadyProcessed.get().eventId(),
-                    WalletStatus.ACTIVE.name()
+                    WalletStatus.CLOSED.name()
             );
         }
 
@@ -88,22 +88,20 @@ public class ActivateWalletHandler {
 
         // 5️⃣ Business validation
         if (currentState.status() == WalletStatus.CLOSED) {
-            throw new WalletClosedException(command.walletId().toString());
-        }
-
-        if (currentState.status() == WalletStatus.ACTIVE) {
-            throw new WalletAlreadyActiveExcpetion();
+            throw new WalletAlreadyClosedException();
         }
 
 
-        // 6️⃣ Create WalletSuspended event
+
+
+        // 6️⃣ Create WalletClose event
         UUID eventId = UUID.randomUUID();
         String eventPayload = null;
 
-        StoredEvent activatedEvent = new StoredEvent(
+        StoredEvent closedEvent = new StoredEvent(
                 eventId,
                 command.walletId(),
-                EventType.WALLET_ACTIVATED.code(), // WALLET_ACTIVATED
+                EventType.WALLET_CLOSED.code(), // WALLET_CLOSED
                 eventPayload,
                 currentVersion + 1,
                 Instant.now(),
@@ -112,13 +110,13 @@ public class ActivateWalletHandler {
         );
 
         AggregateEvent newAggregateEvent = new AggregateEvent(
-                activatedEvent.eventType(), // WALLET_ACTIVATED
-                activatedEvent.eventPayload()
+                closedEvent.eventType(), // WALLET_CLOSED
+                closedEvent.eventPayload()
         );
 
 
 
-        List<StoredEvent> newEvents = List.of(activatedEvent);
+        List<StoredEvent> newEvents = List.of(closedEvent);
         List<AggregateEvent> newAggregateEventList = List.of(newAggregateEvent);
 
         // 7️⃣ Persist event
@@ -149,7 +147,7 @@ public class ActivateWalletHandler {
 
         return new WalletLifecycleResponse(
                 eventId,
-                WalletStatus.ACTIVE.name()
+                WalletStatus.CLOSED.name()
         );
     }
 }
