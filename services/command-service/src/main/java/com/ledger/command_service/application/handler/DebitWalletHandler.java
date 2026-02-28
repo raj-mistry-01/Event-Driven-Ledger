@@ -1,4 +1,183 @@
+
 package com.ledger.command_service.application.handler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ledger.command_service.application.dto.AmountPayload;
+import com.ledger.command_service.application.dto.DebitWalletResponse;
+import com.ledger.command_service.application.port.*;
+import com.ledger.command_service.application.exception.*;
+import com.ledger.command_service.domain.aggregate.WalletAggregate;
+import com.ledger.command_service.domain.command.DebitWalletCommand;
+import com.ledger.command_service.domain.enums.EventType;
+import com.ledger.command_service.domain.enums.WalletStatus;
+import com.ledger.command_service.domain.state.SnapshotState;
+import com.ledger.command_service.infrastructure.snapshot.SnapshotPolicy;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Component
 public class DebitWalletHandler {
+
+    private final EventStore eventStore;
+    private final SnapshotStore snapshotStore;
+    private final OutboxStore outboxStore;
+    private final ProcessedCommandStore processedCommandStore;
+    private final SnapshotPolicy snapshotPolicy;
+    private final ObjectMapper objectMapper;
+
+    public DebitWalletHandler(
+            EventStore eventStore,
+            SnapshotStore snapshotStore,
+            OutboxStore outboxStore,
+            ProcessedCommandStore processedCommandStore,
+            SnapshotPolicy snapshotPolicy,
+            ObjectMapper objectMapper
+    ) {
+        this.eventStore = eventStore;
+        this.snapshotStore = snapshotStore;
+        this.outboxStore = outboxStore;
+        this.processedCommandStore = processedCommandStore;
+        this.snapshotPolicy = snapshotPolicy;
+        this.objectMapper = objectMapper;
+    }
+
+    @Transactional
+    public DebitWalletResponse handle(DebitWalletCommand command) {
+        // 1️⃣ Idempotency check
+        Optional<ProcessedCommand> alreadyProcessed =
+                processedCommandStore.find(
+                        command.clientId(),
+                        command.clientRequestId()
+                );
+
+        if (alreadyProcessed.isPresent()) {
+            return new DebitWalletResponse(
+                    alreadyProcessed.get().walletId(),
+                    alreadyProcessed.get().eventId(),
+                    command.debitAmount(),
+                    WalletStatus.DEBITED.name()
+            );
+        }
+
+
+
+        if(command.debitAmount() == null || command.debitAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidAmountException();
+        }
+
+        // 2️⃣ Wallet existence + current version
+        int currentVersion = eventStore.readCurrentVersion(command.walletId());
+
+        if (currentVersion == 0) {
+            throw new WalletNotFoundException(command.walletId().toString());
+        }
+
+        // 3️⃣ Load snapshot
+        SnapshotStore.SnapshotWithVersion snapshot =
+                snapshotStore.load(command.walletId()).orElse(null);
+
+        SnapshotState baseState =
+                snapshot != null ? snapshot.state() : SnapshotState.initial();
+
+        int snapshotVersion =
+                snapshot != null ? snapshot.version() : 0;
+
+        // 4️⃣ Replay events
+        List<AggregateEvent> events =
+                eventStore.loadEventsForSnapshot(
+                        command.walletId(),
+                        snapshotVersion
+                );
+
+        SnapshotState currentState =
+                WalletAggregate.applyEvents(baseState, events);
+
+
+        // 5️⃣ Business validation
+        if (currentState.status() == WalletStatus.CLOSED) {
+            throw new WalletClosedException(command.walletId().toString());
+        }
+
+        if (currentState.status() == WalletStatus.SUSPENDED) {
+            throw new WalletSuspendedException(command.walletId().toString());
+        }
+
+        if(currentState.balance().compareTo(command.debitAmount()) < 0) {
+            throw new InsufficientFundsException(command.walletId().toString());
+        }
+
+
+        // 6️⃣ Create WalletDebit event
+        UUID eventId = UUID.randomUUID();
+        AmountPayload payload = new AmountPayload(command.debitAmount());
+        String eventPayload;
+        try{
+            eventPayload = objectMapper.writeValueAsString(payload);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Failed to serialize event payload", e);
+        }
+
+
+        StoredEvent debitEvent = new StoredEvent(
+                eventId,
+                command.walletId(),
+                EventType.WALLET_DEBITED.code(), // WALLET_DEBITED
+                eventPayload,
+                currentVersion + 1,
+                Instant.now(),
+                command.clientId(),
+                command.clientRequestId()
+        );
+
+
+        AggregateEvent newAggregateEvent = new AggregateEvent(
+                debitEvent.eventType(), // WALLET_DEBITED
+                debitEvent.eventPayload()
+        );
+
+        List<StoredEvent> newEvents = List.of(debitEvent);
+        List<AggregateEvent> newAggregateEventList = List.of(newAggregateEvent);
+
+
+
+        // 7️⃣ Persist event
+        eventStore.appendEvents(
+                command.walletId(),
+                currentVersion,
+                newEvents
+        );
+
+        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
+        snapshotPolicy.maybeSnapshot(
+                command.walletId(),
+                currentVersion + 1,
+                postState
+        );
+
+        // 8️⃣ Outbox
+        outboxStore.save(newEvents);
+
+        // 9️⃣ Mark command processed
+        processedCommandStore.markProcessed(
+                command.clientId(),
+                command.clientRequestId(),
+                command.walletId(),
+                eventId
+        );
+
+        return new DebitWalletResponse(
+                command.walletId(),
+                eventId,
+                command.debitAmount(),
+                WalletStatus.DEBITED.name()
+        );
+    }
 }
+

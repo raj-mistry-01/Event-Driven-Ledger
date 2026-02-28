@@ -2,9 +2,7 @@ package com.ledger.command_service.controller;
 
 import com.ledger.command_service.application.dto.*;
 import com.ledger.command_service.application.handler.*;
-import com.ledger.command_service.domain.command.CreateWalletCommand;
-import com.ledger.command_service.domain.command.CreditWalletCommand;
-import com.ledger.command_service.domain.command.WalletLifeCycleCommand;
+import com.ledger.command_service.domain.command.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,26 +16,31 @@ public class WalletCommandController{
     private final SuspendWalletHandler suspendWalletHandler;
     private final CloseWalletHandler closeWalletHandler;
     private final CreditWalletHandler creditWalletHandler;
+    private final  DebitWalletHandler debitWalletHandler;
+    private final ReverseTransactionHandler reverseTransactionHandler;
 
     public WalletCommandController(
             CreateWalletHandler createWalletHandler,
             ActivateWalletHandler activateHandler,
             SuspendWalletHandler suspendWalletHandler,
             CloseWalletHandler closeWalletHandler,
-            CreditWalletHandler creditWalletHandler
+            CreditWalletHandler creditWalletHandler,
+            DebitWalletHandler debitWalletHandler,
+            ReverseTransactionHandler reverseTransactionHandler
     ) {
         this.createWalletHandler = createWalletHandler;
         this.activateHandler = activateHandler;
         this.suspendWalletHandler = suspendWalletHandler;
         this.closeWalletHandler = closeWalletHandler;
         this.creditWalletHandler = creditWalletHandler;
+        this.debitWalletHandler = debitWalletHandler;
+        this.reverseTransactionHandler = reverseTransactionHandler;
     }
 
     @PostMapping("/create")
     public ResponseEntity<CreateWalletResponse> createWallet(
             @RequestBody CreateWalletRequest request
     ) throws Exception {
-        System.out.println("yes");
         CreateWalletCommand command =
                 new CreateWalletCommand(
                         request.clientId(),
@@ -122,5 +125,44 @@ public class WalletCommandController{
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
 //        return ResponseEntity.status(HttpStatus.OK).body("yes");
+    }
+
+    @PostMapping(path = "/debit")
+    public ResponseEntity<DebitWalletResponse> debitHandler(
+            @RequestBody DebitWalletRequest request
+    ) throws Exception{
+        DebitWalletCommand command =
+                new DebitWalletCommand(
+                        request.walletId(),
+                        request.debitAmount(),
+                        request.clientId(),
+                        request.clientRequestId()
+                );
+
+
+        DebitWalletResponse response =
+                debitWalletHandler.handle(command);
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+//        return ResponseEntity.status(HttpStatus.OK).body("yes");
+    }
+
+    @PostMapping(path = "/reverstransaction")
+    public ResponseEntity<ReverseTransactionResponse> debitHandler(
+            @RequestBody ReverseTransactionRequest request
+    ) throws Exception{
+
+        ReverseTransactionCommand command =
+                new ReverseTransactionCommand(
+                        request.walletId(),
+                        request.originalTransactionId(),
+                        request.clientId(),
+                        request.clientRequestId()
+                );
+
+
+        ReverseTransactionResponse response =
+                reverseTransactionHandler.handle(command);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }
