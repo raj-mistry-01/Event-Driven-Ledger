@@ -141,7 +141,6 @@ public class CreditWalletHandler {
         List<StoredEvent> newEvents = List.of(creditEvent);
         List<AggregateEvent> newAggregateEventList = List.of(newAggregateEvent);
 
-        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
 
 
         // 7️⃣ Persist event
@@ -151,6 +150,7 @@ public class CreditWalletHandler {
                 newEvents
         );
 
+        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
         snapshotPolicy.maybeSnapshot(
                 command.walletId(),
                 currentVersion + 1,
@@ -167,7 +167,6 @@ public class CreditWalletHandler {
                 command.walletId(),
                 eventId
         );
-
 
         return new CreditWalletResponse(
                 command.walletId(),

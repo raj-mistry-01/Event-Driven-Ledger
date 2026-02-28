@@ -57,7 +57,11 @@ public class JdbcSnapshotStore implements SnapshotStore {
     @Override
     public void upsert(UUID walletId, int version, SnapshotState state) {
         try {
+//            System.out.println(version);
             String jsonState = objectMapper.writeValueAsString(state);
+//            System.out.println(state);
+//
+//            System.out.println("snapshot triggered");
 
             jdbc.sql("""
                     INSERT INTO snapshot (
@@ -66,7 +70,7 @@ public class JdbcSnapshotStore implements SnapshotStore {
                         snapshot_state,
                         snapshot_timestamp
                     )
-                    VALUES (?, ?, ?::jsnob, now())
+                    VALUES (?, ?, ?::jsonb, now())
                     ON CONFLICT (wallet_id)
                     DO UPDATE SET
                         snapshot_version   = EXCLUDED.snapshot_version,

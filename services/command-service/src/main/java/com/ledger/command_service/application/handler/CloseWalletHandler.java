@@ -127,7 +127,6 @@ public class CloseWalletHandler {
         );
 
         SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
-
         snapshotPolicy.maybeSnapshot(
                 command.walletId(),
                 currentVersion + 1,

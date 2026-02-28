@@ -119,9 +119,6 @@ public class SuspendWalletHandler {
         List<StoredEvent> newEvents = List.of(suspendedEvent);
         List<AggregateEvent> newAggregateEventList = List.of(newAggregateEvent);
 
-        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
-
-
 
         // 7️⃣ Persist event
         eventStore.appendEvents(
@@ -130,6 +127,7 @@ public class SuspendWalletHandler {
                 newEvents
         );
 
+        SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
         snapshotPolicy.maybeSnapshot(
                 command.walletId(),
                 currentVersion + 1,
