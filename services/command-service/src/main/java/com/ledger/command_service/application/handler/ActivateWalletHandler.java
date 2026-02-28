@@ -81,7 +81,6 @@ public class ActivateWalletHandler {
                         command.walletId(),
                         snapshotVersion
                 );
-
         SnapshotState currentState =
                 WalletAggregate.applyEvents(baseState, events);
 
@@ -129,7 +128,6 @@ public class ActivateWalletHandler {
         );
 
         SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
-
         snapshotPolicy.maybeSnapshot(
                 command.walletId(),
                 currentVersion + 1,
