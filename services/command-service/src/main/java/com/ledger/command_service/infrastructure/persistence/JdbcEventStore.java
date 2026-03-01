@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -52,6 +53,7 @@ public class JdbcEventStore implements EventStore {
                 .list();
     }
 
+    @Override
     public List<AggregateEvent> loadEventsForSnapshot(UUID walletId, int version) {
         return jdbc.sql("""
                 SELECT event_type,
@@ -138,7 +140,7 @@ public class JdbcEventStore implements EventStore {
     }
 
 
-
+    @Override
     public int readCurrentVersion(UUID walletId) {
         Integer version = jdbc.sql("""
                 SELECT last_version
@@ -153,6 +155,36 @@ public class JdbcEventStore implements EventStore {
         return version == null ? 0 : version;
     }
 
+    @Override
+    public Optional<StoredEvent> findByEventId(UUID eventId) {
+
+        return jdbc.sql("""
+            SELECT event_id,
+                   wallet_id,
+                   event_type,
+                   event_payload,
+                   event_version,
+                   event_timestamp,
+                   client_id,
+                   client_request_id
+            FROM events
+            WHERE event_id = ?
+            """)
+                .param(eventId)
+                .query((rs, rowNum) -> new StoredEvent(
+                        UUID.fromString(rs.getString("event_id")),
+                        UUID.fromString(rs.getString("wallet_id")),
+                        rs.getInt("event_type"),
+                        rs.getString("event_payload"),
+                        rs.getInt("event_version"),
+                        rs.getTimestamp("event_timestamp").toInstant(),
+                        rs.getString("client_id"),
+                        rs.getString("client_request_id")
+                ))
+                .optional();
+    }
+
+
     private void upsertStreamHead(UUID walletId, int newVersion) {
         jdbc.sql("""
                 INSERT INTO wallet_stream_head (wallet_id, last_version, updated_at)
@@ -164,21 +196,6 @@ public class JdbcEventStore implements EventStore {
                 """)
                 .params(walletId, newVersion, Timestamp.from(Instant.now()))
                 .update();
-    }
-
-    @Override
-    public boolean walletStreamExists(UUID walletId) {
-        Integer one = jdbc.sql("""
-            SELECT 1
-            FROM wallet_stream_head
-            WHERE wallet_id = ?
-            """)
-                .param(walletId)
-                .query(Integer.class)
-                .optional()
-                .orElse(null);
-
-        return one != null;
     }
 
 }

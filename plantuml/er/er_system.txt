@@ -6,7 +6,7 @@ skinparam packageStyle rectangle
 title "Event driven ledger : Entity and db tables"
 
 package event #line.dashed{
-entity snapshot {
+entity snapshot{
   wallet_id : //uuid// [PK]
   snapshot_version : //integer// 
   snapshot_state : //json//
@@ -44,13 +44,23 @@ entity processed_commands {
   processed_at : //timestamp//
 }
 
+entity reversed_transactions{
+    original_transaction_id : //uuid// [PK][FK]
+    reversal_event_id : //uuid//
+    wallet_id : //uuid//
+    created_at : //timestamp//
+}
+
 entity wallet_stream_head {
   wallet_id : //uuid// [PK]
   last_version : //integer//
   updated_at : //timestamp//
 }
 
+reversed_transactions }-- events
+
 }
+
 
 
 package balance #line.dashed{

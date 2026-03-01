@@ -46,3 +46,14 @@ CREATE TABLE wallet_stream_head (
     last_version  INTEGER NOT NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS reversed_transactions (
+    original_transaction_id UUID PRIMARY KEY,
+    reversal_event_id UUID NOT NULL UNIQUE,
+    wallet_id UUID NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_original_transaction
+        FOREIGN KEY (original_transaction_id)	
+        REFERENCES events(event_id)
+        ON DELETE RESTRICT
+);

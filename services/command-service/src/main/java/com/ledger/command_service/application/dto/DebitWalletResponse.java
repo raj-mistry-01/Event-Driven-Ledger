@@ -6,7 +6,7 @@ import java.util.UUID;
 public record DebitWalletResponse(
         UUID walletId,
         UUID transactionId,
-        BigDecimal debitedAmoun,
+        BigDecimal debitedAmount,
         String status
 ) {
 }

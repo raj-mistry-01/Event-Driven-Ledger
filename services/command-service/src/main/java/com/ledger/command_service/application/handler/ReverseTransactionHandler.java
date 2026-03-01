@@ -3,26 +3,27 @@ package com.ledger.command_service.application.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledger.command_service.application.dto.AmountPayload;
-import com.ledger.command_service.application.dto.DebitWalletResponse;
+import com.ledger.command_service.application.dto.ReversalPayload;
+import com.ledger.command_service.application.dto.ReverseTransactionResponse;
 import com.ledger.command_service.application.port.*;
 import com.ledger.command_service.application.exception.*;
 import com.ledger.command_service.domain.aggregate.WalletAggregate;
-import com.ledger.command_service.domain.command.DebitWalletCommand;
+import com.ledger.command_service.domain.command.ReverseTransactionCommand;
 import com.ledger.command_service.domain.enums.EventType;
 import com.ledger.command_service.domain.enums.WalletStatus;
 import com.ledger.command_service.domain.state.SnapshotState;
 import com.ledger.command_service.infrastructure.snapshot.SnapshotPolicy;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class DebitWalletHandler {
+public class ReverseTransactionHandler {
 
     private final EventStore eventStore;
     private final SnapshotStore snapshotStore;
@@ -30,14 +31,16 @@ public class DebitWalletHandler {
     private final ProcessedCommandStore processedCommandStore;
     private final SnapshotPolicy snapshotPolicy;
     private final ObjectMapper objectMapper;
+    private final ReversalTracker reversalTracker;
 
-    public DebitWalletHandler(
+    public ReverseTransactionHandler(
             EventStore eventStore,
             SnapshotStore snapshotStore,
             OutboxStore outboxStore,
             ProcessedCommandStore processedCommandStore,
             SnapshotPolicy snapshotPolicy,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ReversalTracker reversalTracker
     ) {
         this.eventStore = eventStore;
         this.snapshotStore = snapshotStore;
@@ -45,11 +48,12 @@ public class DebitWalletHandler {
         this.processedCommandStore = processedCommandStore;
         this.snapshotPolicy = snapshotPolicy;
         this.objectMapper = objectMapper;
+        this.reversalTracker = reversalTracker;
     }
 
     @Transactional
-    public DebitWalletResponse handle(DebitWalletCommand command) {
-        // 1️⃣ Idempotency check
+    public ReverseTransactionResponse handle(ReverseTransactionCommand command) {
+
         Optional<ProcessedCommand> alreadyProcessed =
                 processedCommandStore.find(
                         command.clientId(),
@@ -57,28 +61,20 @@ public class DebitWalletHandler {
                 );
 
         if (alreadyProcessed.isPresent()) {
-            return new DebitWalletResponse(
+            return new ReverseTransactionResponse(
                     alreadyProcessed.get().walletId(),
-                    alreadyProcessed.get().eventId(),
-                    command.debitAmount(),
-                    WalletStatus.DEBITED.name()
+                    command.originalTransactionId(),
+                    alreadyProcessed.get().eventId()
             );
         }
 
-
-
-        if(command.debitAmount() == null || command.debitAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new InvalidAmountException();
-        }
-
-        // 2️⃣ Wallet existence + current version
         int currentVersion = eventStore.readCurrentVersion(command.walletId());
 
         if (currentVersion == 0) {
             throw new WalletNotFoundException(command.walletId().toString());
         }
 
-        // 3️⃣ Load snapshot
+        // Load snapshot
         SnapshotStore.SnapshotWithVersion snapshot =
                 snapshotStore.load(command.walletId()).orElse(null);
 
@@ -88,7 +84,7 @@ public class DebitWalletHandler {
         int snapshotVersion =
                 snapshot != null ? snapshot.version() : 0;
 
-        // 4️⃣ Replay events
+        // Replay events
         List<AggregateEvent> events =
                 eventStore.loadEventsForSnapshot(
                         command.walletId(),
@@ -99,7 +95,7 @@ public class DebitWalletHandler {
                 WalletAggregate.applyEvents(baseState, events);
 
 
-        // 5️⃣ Business validation
+        //  Business validation
         if (currentState.status() == WalletStatus.CLOSED) {
             throw new WalletClosedException(command.walletId().toString());
         }
@@ -108,51 +104,103 @@ public class DebitWalletHandler {
             throw new WalletSuspendedException(command.walletId().toString());
         }
 
-        if(currentState.balance().compareTo(command.debitAmount()) < 0) {
-            throw new InsufficientFundsException(command.walletId().toString());
+        // fetch original transaction event
+
+        Optional<StoredEvent> originalEvent =
+                eventStore.findByEventId(command.originalTransactionId());
+
+        if(originalEvent.isEmpty()) {
+            // thow exception
+            throw new TransactionNotFoundException(command.originalTransactionId().toString());
+        }
+
+        if(originalEvent.get().eventType() != EventType.WALLET_CREDITED.code() && originalEvent.get().eventType() != EventType.WALLET_DEBITED.code()) {
+            // throw exception
+            throw new InvalidReversalException(command.originalTransactionId().toString());
+        }
+
+        if (!originalEvent.get().walletId().equals(command.walletId())) {
+            // throw exception
+            throw new InvalidReversalException(command.originalTransactionId().toString());
         }
 
 
-        // 6️⃣ Create WalletDebit event
-        UUID eventId = UUID.randomUUID();
-        AmountPayload payload = new AmountPayload(command.debitAmount());
-        String eventPayload;
-        try{
-            eventPayload = objectMapper.writeValueAsString(payload);
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Failed to serialize event payload", e);
+        AmountPayload originalPayload;
+
+        try {
+            originalPayload = objectMapper.readValue(
+                    originalEvent.get().eventPayload(),
+                    AmountPayload.class
+            );
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Failed to deserialize original transaction payload",
+                    e
+            );
         }
 
+        BigDecimal reversalAmount = originalPayload.amount();
 
-        StoredEvent debitEvent = new StoredEvent(
-                eventId,
+        EventType reversalEventType = originalEvent.get().eventType() == EventType.WALLET_CREDITED.code()
+                ? EventType.CREDIT_REVERSED
+                : EventType.DEBIT_REVERSED;
+
+
+        if(reversalEventType == EventType.CREDIT_REVERSED) {
+            if(currentState.balance().compareTo(reversalAmount) < 0) {
+                throw new InsufficientFundsException(command.walletId().toString());
+            }
+        }
+
+        ReversalPayload reversalPayload = new ReversalPayload(
+                command.originalTransactionId(),
+                reversalAmount
+        );
+
+        String reversalEventPayload;
+        try {
+            reversalEventPayload = objectMapper.writeValueAsString(reversalPayload);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize reversal event payload", e);
+        }
+
+        // Create reversal event
+        UUID reversalEventId = UUID.randomUUID();
+        StoredEvent reversalEvent = new StoredEvent(
+                reversalEventId,
                 command.walletId(),
-                EventType.WALLET_DEBITED.code(), // WALLET_DEBITED
-                eventPayload,
+                reversalEventType.code(),
+                reversalEventPayload,
                 currentVersion + 1,
-                Instant.now(),
+                java.time.Instant.now(),
                 command.clientId(),
                 command.clientRequestId()
         );
 
 
         AggregateEvent newAggregateEvent = new AggregateEvent(
-                debitEvent.eventType(), // WALLET_DEBITED
-                debitEvent.eventPayload()
+                reversalEvent.eventType(),
+                reversalEvent.eventPayload()
         );
 
-        List<StoredEvent> newEvents = List.of(debitEvent);
+        List<StoredEvent> newEvents = List.of(reversalEvent);
         List<AggregateEvent> newAggregateEventList = List.of(newAggregateEvent);
-
-
-
-        // 7️⃣ Persist event
+        try {
+             reversalTracker.recordReversal(
+                    command.originalTransactionId(),
+                    reversalEventId,
+                    command.walletId()
+            );
+        } catch (DuplicateKeyException e) {
+            throw new AlreadyReversedException(command.originalTransactionId().toString());
+        }
+            // 7️⃣ Persist event
         eventStore.appendEvents(
                 command.walletId(),
                 currentVersion,
                 newEvents
         );
+
 
         SnapshotState postState = WalletAggregate.applyEvents(currentState, newAggregateEventList);
         snapshotPolicy.maybeSnapshot(
@@ -169,14 +217,13 @@ public class DebitWalletHandler {
                 command.clientId(),
                 command.clientRequestId(),
                 command.walletId(),
-                eventId
+                reversalEventId
         );
 
-        return new DebitWalletResponse(
+        return new ReverseTransactionResponse(
                 command.walletId(),
-                eventId,
-                command.debitAmount(),
-                WalletStatus.DEBITED.name()
+                command.originalTransactionId(),
+                reversalEventId
         );
     }
 }
