@@ -12,3 +12,6 @@ ON processed_commands (event_id);
 
 CREATE INDEX idx_outbox_pending_order
 ON outbox (status, wallet_id, event_version);
+
+CREATE UNIQUE INDEX idx_events_event_id 
+ON events(event_id);

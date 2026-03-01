@@ -1,6 +1,8 @@
 package com.ledger.command_service.application.port;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 public interface EventStore {
@@ -13,9 +15,10 @@ public interface EventStore {
             List<StoredEvent> newEvents
     );
 
-    boolean walletStreamExists(UUID wallet_id);
 
     List<AggregateEvent> loadEventsForSnapshot(UUID walletId, int version);
 
     int readCurrentVersion(UUID uuid);
+
+    Optional<StoredEvent> findByEventId(UUID eventId);
 }
