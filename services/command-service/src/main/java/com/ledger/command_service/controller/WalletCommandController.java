@@ -1,6 +1,7 @@
 package com.ledger.command_service.controller;
 
 import com.ledger.command_service.application.dto.*;
+import com.ledger.command_service.application.execution.RetryExecutor;
 import com.ledger.command_service.application.handler.*;
 import com.ledger.command_service.domain.command.*;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ public class WalletCommandController{
     private final CreditWalletHandler creditWalletHandler;
     private final  DebitWalletHandler debitWalletHandler;
     private final ReverseTransactionHandler reverseTransactionHandler;
+    private final RetryExecutor retryExecutor;
 
     public WalletCommandController(
             CreateWalletHandler createWalletHandler,
@@ -26,7 +28,8 @@ public class WalletCommandController{
             CloseWalletHandler closeWalletHandler,
             CreditWalletHandler creditWalletHandler,
             DebitWalletHandler debitWalletHandler,
-            ReverseTransactionHandler reverseTransactionHandler
+            ReverseTransactionHandler reverseTransactionHandler,
+            RetryExecutor retryExecutor
     ) {
         this.createWalletHandler = createWalletHandler;
         this.activateHandler = activateHandler;
@@ -35,6 +38,7 @@ public class WalletCommandController{
         this.creditWalletHandler = creditWalletHandler;
         this.debitWalletHandler = debitWalletHandler;
         this.reverseTransactionHandler = reverseTransactionHandler;
+        this.retryExecutor = retryExecutor;
     }
 
     @PostMapping("/create")
@@ -64,8 +68,10 @@ public class WalletCommandController{
                         request.clientRequestId()
                 );
 
+//        WalletLifecycleResponse response =
+//                activateHandler.handle(command);
         WalletLifecycleResponse response =
-                activateHandler.handle(command);
+                retryExecutor.execute(() -> activateHandler.handle(command));
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
@@ -82,8 +88,10 @@ public class WalletCommandController{
                 );
 
 
+//        WalletLifecycleResponse response =
+//                suspendWalletHandler.handle(command);
         WalletLifecycleResponse response =
-                suspendWalletHandler.handle(command);
+                retryExecutor.execute(() -> suspendWalletHandler.handle(command));
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
@@ -101,8 +109,10 @@ public class WalletCommandController{
                 );
 
 
+//        WalletLifecycleResponse response =
+//                closeWalletHandler.handle(command);
         WalletLifecycleResponse response =
-                closeWalletHandler.handle(command);
+                retryExecutor.execute(() -> closeWalletHandler.handle(command));
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
@@ -120,11 +130,12 @@ public class WalletCommandController{
                 );
 
 
+//        CreditWalletResponse response =
+//                creditWalletHandler.handle(command);
         CreditWalletResponse response =
-                creditWalletHandler.handle(command);
+                retryExecutor.execute(() -> creditWalletHandler.handle(command));
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
-//        return ResponseEntity.status(HttpStatus.OK).body("yes");
     }
 
     @PostMapping(path = "/debit")
@@ -140,11 +151,12 @@ public class WalletCommandController{
                 );
 
 
+//        DebitWalletResponse response =
+//                debitWalletHandler.handle(command);
         DebitWalletResponse response =
-                debitWalletHandler.handle(command);
+                retryExecutor.execute(() -> debitWalletHandler.handle(command));
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
-//        return ResponseEntity.status(HttpStatus.OK).body("yes");
     }
 
     @PostMapping(path = "/reverstransaction")
@@ -161,8 +173,12 @@ public class WalletCommandController{
                 );
 
 
+//        ReverseTransactionResponse response =
+//                reverseTransactionHandler.handle(command);
+
         ReverseTransactionResponse response =
-                reverseTransactionHandler.handle(command);
+                retryExecutor.execute(() -> reverseTransactionHandler.handle(command));
+
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }

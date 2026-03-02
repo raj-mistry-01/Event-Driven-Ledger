@@ -1,10 +1,12 @@
 package com.ledger.command_service.infrastructure.persistence;
 
+import com.ledger.command_service.application.exception.OptimisticLockException;
 import com.ledger.command_service.application.port.AggregateEvent;
 import com.ledger.command_service.application.port.EventStore;
 import com.ledger.command_service.application.port.StoredEvent;
 import org.apache.catalina.util.ToStringUtil;
 import org.postgresql.util.PGobject;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,17 +84,12 @@ public class JdbcEventStore implements EventStore {
         int currentVersion = readCurrentVersion(walletId);
 
         if (currentVersion != expectedVersion) {
-            throw new IllegalStateException(
-                    "Optimistic lock failed for walletId=" + walletId +
-                            " expectedVersion=" + expectedVersion +
-                            " actualVersion=" + currentVersion
+            throw new OptimisticLockException(
+                    ("version mismatch")
             );
         }
 
         int nextVersion = currentVersion;
-
-
-
 
         for (StoredEvent event : newEvents) {
             nextVersion++;
@@ -123,17 +120,12 @@ public class JdbcEventStore implements EventStore {
                         )
                         .update();
 
-            } catch (Exception e) {
-
-                e.printStackTrace();
-
-                Throwable root = e.getCause();
-
-                while(root != null){
-                    System.out.println("CAUSE -> " + root.getMessage());
-                    root = root.getCause();
-                }
-
+            }
+            catch (DuplicateKeyException e){
+                throw new OptimisticLockException("version mismatch");
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Failed to persist event", e);
             }
         }
         upsertStreamHead(walletId, nextVersion);
