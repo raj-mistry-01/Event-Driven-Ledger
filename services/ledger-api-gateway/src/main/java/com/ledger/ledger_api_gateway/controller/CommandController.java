@@ -16,21 +16,9 @@ public class CommandController {
         this.webClient = builder.build();
     }
 
-    @PostMapping(path = "/wallet/create")
-    public Mono<ResponseEntity<String>> createController(@RequestBody String requestBody) {
+    public Mono<ResponseEntity<String>> callWebclient(String path, String requestBody) {
         return webClient.post()
-                .uri("http://command-service/wallet/create")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestBody)
-                .retrieve()
-                .toEntity(String.class);
-    }
-
-    @PostMapping("/wallet/suspend")
-    public Mono<ResponseEntity<String>> suspendController(@RequestBody String requestBody) {
-
-        return webClient.post()
-                .uri("http://command-service/wallet/suspend")
+                .uri(path)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestBody)
                 .exchangeToMono(response ->
@@ -44,5 +32,42 @@ public class CommandController {
                                 )
                 );
     }
+
+    @PostMapping(path = "/wallet/create")
+    public Mono<ResponseEntity<String>> createController(@RequestBody String requestBody) {
+        return callWebclient("http://command-service/wallet/create", requestBody);
+    }
+
+    @PostMapping("/wallet/activate")
+    public Mono<ResponseEntity<String>> activateController(@RequestBody String requestBody) {
+        return callWebclient("http://command-service/wallet/activate", requestBody);
+    }
+
+    @PostMapping("/wallet/suspend")
+    public Mono<ResponseEntity<String>> suspendController(@RequestBody String requestBody) {
+        return callWebclient("http://command-service/wallet/suspend", requestBody);
+    }
+
+    @PostMapping("/wallet/close")
+    public Mono<ResponseEntity<String>> closeController(@RequestBody String requestBody) {
+        return callWebclient("http://command-service/wallet/close", requestBody);
+    }
+
+    @PostMapping("/wallet/credit")
+    public Mono<ResponseEntity<String>> creditController(@RequestBody String requestBody) {
+        return callWebclient("http://command-service/wallet/credit", requestBody);
+    }
+
+    @PostMapping("/wallet/debit")
+    public Mono<ResponseEntity<String>> debitController(@RequestBody String requestBody) {
+        return callWebclient("http://command-service/wallet/debit", requestBody);
+    }
+
+    @PostMapping("/wallet/reverse")
+    public Mono<ResponseEntity<String>> reverseController(@RequestBody String requestBody) {
+        return callWebclient("http://command-service/wallet/reverse", requestBody);
+    }
+
+
 
 }
