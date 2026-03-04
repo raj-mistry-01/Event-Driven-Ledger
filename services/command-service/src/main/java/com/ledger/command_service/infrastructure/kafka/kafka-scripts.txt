@@ -1,0 +1,17 @@
+
+start : bin\windows\kafka-server-start.bat config\server.properties
+
+create topic : bin\windows\kafka-topics.bat --	create --topic wallet-events --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
+
+
+consumer : 
+bin\windows\kafka-console-consumer.bat --topic wallet-events --from-beginning --bootstrap-server localhost:9092
+
+producer  : 
+bin\windows\kafka-console-producer.bat --topic wallet-events --bootstrap-server localhost:9092
+
+do not read old messages : 
+bin\windows\kafka-console-consumer.bat --topic wallet-events --bootstrap-server localhost:9092
+
+delete entire topic : 
+bin\windows\kafka-topics.bat --delete --topic wallet-events --bootstrap-server localhost:9092

@@ -11,7 +11,5 @@ public record OutboxEvent(
         String eventPayload,
         int eventVersion,
         UUID walletId,
-        int status,
-        Instant createdAt,
-        Instant publishedAt
+        Instant createdAt
 ) {}

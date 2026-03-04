@@ -16,7 +16,7 @@ public class KafkaEventPublisher {
     }
 
     public void publish(String topic, String key, String payload) {
-        System.out.println("Yesss");
+//        System.out.println("Yesss publishing message to Kafka. Topic: " + topic + ", Key: " + key);
         CompletableFuture<SendResult<String,String>> future = kafkaTemplate.send(topic, key, payload);
 
         future.whenComplete((result, ex) -> {
