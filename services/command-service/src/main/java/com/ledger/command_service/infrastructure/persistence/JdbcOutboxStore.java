@@ -1,5 +1,6 @@
 package com.ledger.command_service.infrastructure.persistence;
 
+import com.ledger.command_service.application.port.OutboxEvent;
 import com.ledger.command_service.application.port.OutboxStore;
 import com.ledger.command_service.application.port.StoredEvent;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -24,18 +25,18 @@ public class JdbcOutboxStore implements OutboxStore {
         for (StoredEvent event : events) {
             try {
                 jdbc.sql("""
-                        INSERT INTO outbox (
-                            outbox_id,
-                            event_id,
-                            event_type,
-                            event_payload,
-                            event_version,
-                            wallet_id,
-                            status,
-                            created_at,
-                            published_at
-                        ) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
-                        """)
+                                INSERT INTO outbox (
+                                    outbox_id,
+                                    event_id,
+                                    event_type,
+                                    event_payload,
+                                    event_version,
+                                    wallet_id,
+                                    status,
+                                    created_at,
+                                    published_at
+                                ) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
+                                """)
                         .params(
                                 UUID.randomUUID(),       // outbox_id
                                 event.eventId(),                // event_id
@@ -52,5 +53,49 @@ public class JdbcOutboxStore implements OutboxStore {
                 throw new RuntimeException("Failed to save outbox event", e);
             }
         }
+    }
+
+    @Override
+    public List<OutboxEvent> findPending(int batchSize) {
+        return jdbc.sql("""
+            SELECT
+                outbox_id,
+                event_id,
+                event_type,
+                event_payload,
+                event_version,
+                wallet_id,
+                created_at
+            FROM outbox
+            WHERE status = 0
+            ORDER BY created_at
+            LIMIT ?
+            """)
+                .param(batchSize)
+                .query((rs, rowNum) -> new OutboxEvent(
+                        rs.getObject("outbox_id", UUID.class),
+                        rs.getObject("event_id", UUID.class),
+                        rs.getInt("event_type"),
+                        rs.getString("event_payload"),
+                        rs.getInt("event_version"),
+                        rs.getObject("wallet_id", UUID.class),
+                        rs.getTimestamp("created_at").toInstant()
+                ))
+                .list();
+    }
+
+    @Override
+    public void markAsPublished(UUID outboxId) {
+        jdbc.sql("""
+            UPDATE outbox
+            SET status = 1,
+                published_at = ?
+            WHERE outbox_id = ?
+            """)
+                .params(
+                        Timestamp.from(Instant.now()),
+                        outboxId
+                )
+                .update();
     }
 }
