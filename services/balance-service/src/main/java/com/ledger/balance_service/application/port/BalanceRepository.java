@@ -9,4 +9,6 @@ public interface BalanceRepository {
     BigDecimal getBalance(UUID walletId);
 
     void updateBalance(UUID walletId, BigDecimal newBalance);
+
+    void updateStatus(UUID walletId, int status);
 }
