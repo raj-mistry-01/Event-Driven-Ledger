@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 @Component
-public class WalletActivatedHandler {
+public class WalletActivatedHandler implements  EventHandler{
 
     private final BalanceRepository balanceRepository;
 
@@ -16,7 +16,13 @@ public class WalletActivatedHandler {
         this.balanceRepository = balanceRepository;
     }
 
-    public void handle(UUID walletId) {
-        balanceRepository.updateStatus(walletId, WalletStatus.ACTIVE.ordinal());
+    @Override
+    public int supportedEventType() {
+        return 1;
+    }
+
+    @Override
+    public void handle(WalletEvent event) {
+        balanceRepository.updateStatus(event.walletId(), WalletStatus.ACTIVE.ordinal());
     }
 }

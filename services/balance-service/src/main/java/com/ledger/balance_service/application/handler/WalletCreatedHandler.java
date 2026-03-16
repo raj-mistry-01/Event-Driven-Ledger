@@ -11,9 +11,8 @@ public class WalletCreatedHandler implements EventHandler {
 
     private final BalanceRepository balanceRepository;
 
-
-    public WalletCreatedHandler(BalanceRepository walletRepository) {
-        this.balanceRepository = walletRepository;
+    public WalletCreatedHandler(BalanceRepository balanceRepository) {
+        this.balanceRepository = balanceRepository;
     }
 
     @Override

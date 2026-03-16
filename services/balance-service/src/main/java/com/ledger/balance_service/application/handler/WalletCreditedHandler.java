@@ -7,7 +7,7 @@ import com.ledger.balance_service.domain.model.WalletEvent;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public class WalletCreditedHandler {
+public class WalletCreditedHandler implements EventHandler{
 
     private final BalanceRepository balanceRepository;
 
@@ -16,7 +16,15 @@ public class WalletCreditedHandler {
         this.balanceRepository = balanceRepository;
     }
 
-    public void handle(UUID walletId, JsonNode eventPayload) {
+    @Override
+    public int supportedEventType() {
+        return 4;
+    }
+
+    @Override
+    public void handle(WalletEvent event) {
+        JsonNode eventPayload = event.eventPayload();
+        UUID walletId = event.walletId();
         BigDecimal amount = eventPayload.get("amount").decimalValue();
         BigDecimal currentBalance = balanceRepository.getBalance(walletId);
         BigDecimal newBalance = currentBalance.add(amount);
