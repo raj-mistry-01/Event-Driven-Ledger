@@ -14,8 +14,8 @@ public class OutboxPoller {
         this.relayService = relayService;
     }
 
-    @Scheduled(fixedDelay = 50000) // every  seconds
+    @Scheduled(fixedDelay = 5000) // every  seconds
     public void poll() {
-        relayService.processBatch(50, "wallet-events");
+        relayService.processBatch(100, "wallet-events");
     }
 }

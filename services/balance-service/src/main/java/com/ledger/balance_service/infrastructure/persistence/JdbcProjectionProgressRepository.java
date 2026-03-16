@@ -29,7 +29,6 @@ public class JdbcProjectionProgressRepository implements ProjectionProgressRepos
                 .query(Integer.class)
                 .optional()
                 .orElse(null);
-        System.out.println("Last processed version for wallet " + walletId + ": " + version);
         return version != null ? version : 0;
     }
 

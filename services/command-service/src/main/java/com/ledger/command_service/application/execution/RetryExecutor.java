@@ -18,7 +18,7 @@ public class RetryExecutor {
 
         while (true) {
             try {
-                System.out.println("Attempt " + (attempt + 1) + " of " + MAX_RETRIES);
+//                System.out.println("Attempt " + (attempt + 1) + " of " + MAX_RETRIES);
                 return action.get();
             } catch (OptimisticLockException e) {
                 attempt++;

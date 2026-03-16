@@ -1,5 +1,8 @@
 package com.ledger.command_service.infrastructure.persistence;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledger.command_service.application.port.OutboxEvent;
 import com.ledger.command_service.application.port.OutboxStore;
 import com.ledger.command_service.application.port.StoredEvent;
@@ -15,9 +18,11 @@ import java.util.UUID;
 public class JdbcOutboxStore implements OutboxStore {
 
     private final JdbcClient jdbc;
+    private final ObjectMapper objectMapper;
 
-    public JdbcOutboxStore(JdbcClient jdbc) {
+    public JdbcOutboxStore(JdbcClient jdbc , ObjectMapper objectMapper) {
         this.jdbc = jdbc;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -58,29 +63,43 @@ public class JdbcOutboxStore implements OutboxStore {
     @Override
     public List<OutboxEvent> findPending(int batchSize) {
         return jdbc.sql("""
-            SELECT
-                outbox_id,
-                event_id,
-                event_type,
-                event_payload,
-                event_version,
-                wallet_id,
-                created_at
-            FROM outbox
-            WHERE status = 0
-            ORDER BY created_at
-            LIMIT ?
-            """)
+        SELECT
+            outbox_id,
+            event_id,
+            event_type,
+            event_payload,
+            event_version,
+            wallet_id,
+            created_at
+        FROM outbox
+        WHERE status = 0
+        ORDER BY created_at
+        LIMIT ?
+        """)
                 .param(batchSize)
-                .query((rs, rowNum) -> new OutboxEvent(
-                        rs.getObject("outbox_id", UUID.class),
-                        rs.getObject("event_id", UUID.class),
-                        rs.getInt("event_type"),
-                        rs.getString("event_payload"),
-                        rs.getInt("event_version"),
-                        rs.getObject("wallet_id", UUID.class),
-                        rs.getTimestamp("created_at").toInstant()
-                ))
+                .query((rs, rowNum) -> {
+                    try {
+
+                        String payloadStr = rs.getString("event_payload");
+
+                        JsonNode payload = payloadStr == null
+                                ? null
+                                : objectMapper.readTree(payloadStr);
+
+                        return new OutboxEvent(
+                                rs.getObject("outbox_id", UUID.class),
+                                rs.getObject("event_id", UUID.class),
+                                rs.getInt("event_type"),
+                                payload,
+                                rs.getInt("event_version"),
+                                rs.getObject("wallet_id", UUID.class),
+                                rs.getTimestamp("created_at").toInstant()
+                        );
+
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
                 .list();
     }
 
