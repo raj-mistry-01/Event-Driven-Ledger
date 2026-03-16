@@ -3,10 +3,12 @@ package com.ledger.balance_service.application.handler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ledger.balance_service.application.port.BalanceRepository;
 import com.ledger.balance_service.domain.model.WalletEvent;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
+@Component
 public class CreditReversedHandler implements EventHandler{
 
     private final BalanceRepository balanceRepository;

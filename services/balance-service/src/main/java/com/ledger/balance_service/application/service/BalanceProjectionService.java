@@ -7,6 +7,7 @@ import com.ledger.balance_service.application.port.ProjectionProgressRepository;
 import com.ledger.balance_service.domain.model.WalletEvent;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -92,6 +93,7 @@ public class BalanceProjectionService {
         this.handlerRegistry = handlerRegistry;
     }
 
+    @Transactional
     public void processEvent(WalletEvent event) {
 
         UUID walletId = event.walletId();
