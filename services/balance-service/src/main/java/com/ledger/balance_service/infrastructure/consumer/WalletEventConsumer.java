@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledger.balance_service.domain.model.WalletEvent;
 import com.ledger.balance_service.application.service.BalanceProjectionService;
 
-import org.apache.kafka.clients.consumer.internals.Acknowledgements;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
