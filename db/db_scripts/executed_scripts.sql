@@ -4,3 +4,6 @@ SET status = 0,
 
 ALTER TABLE public.balance_projection_progress
 RENAME COLUMN last_version TO last_processed_version;
+
+ALTER TABLE public.history_projection_progress
+RENAME COLUMN last_version TO last_processed_version;
