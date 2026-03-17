@@ -1,6 +1,4 @@
-package com.ledger.balance_service.domain.model;
-
-import jdk.jfr.Name;
+package com.ledger.balance_service.domain.enums;
 
 public enum WalletStatus {
     CREATED,

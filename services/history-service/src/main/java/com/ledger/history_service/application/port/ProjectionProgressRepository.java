@@ -1,4 +1,4 @@
-package com.ledger.balance_service.application.port;
+package com.ledger.history_service.application.port;
 
 import java.util.UUID;
 

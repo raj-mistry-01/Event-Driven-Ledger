@@ -1,9 +1,8 @@
-package com.ledger.balance_service.infrastructure.consumer;
+package com.ledger.history_service.infrastructure.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ledger.balance_service.domain.model.WalletEvent;
-import com.ledger.balance_service.application.service.BalanceProjectionService;
-
+import com.ledger.history_service.application.service.HistoryProjectionService;
+import com.ledger.history_service.domain.model.WalletEvent;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -12,15 +11,15 @@ import org.springframework.stereotype.Component;
 public class WalletEventConsumer {
 
     private final ObjectMapper objectMapper;
-    private final BalanceProjectionService projectionService;
+    private final HistoryProjectionService projectionService;
 
     public WalletEventConsumer(ObjectMapper objectMapper,
-                               BalanceProjectionService projectionService) {
+                               HistoryProjectionService projectionService) {
         this.objectMapper = objectMapper;
         this.projectionService = projectionService;
     }
 
-    @KafkaListener(topics = "wallet-events", groupId = "balance-projection-group")
+    @KafkaListener(topics = "wallet-events", groupId = "history-projection-group")
     public void consume(String message , Acknowledgment ack) {
 
         try {

@@ -10,9 +10,9 @@ CREDIT_URL = f"{BASE_URL}/wallet/credit"
 DEBIT_URL = f"{BASE_URL}/wallet/debit"
 
 wallet_ids = [
-    "550d06e7-a2ee-4bc4-989a-12a1983af270",
-    "80ba76e3-20a2-4d9a-8c9c-65c60e68b6b2",
-    "d25dec45-7444-447d-adc5-d5875ddc40b1"
+    "65a41c0e-a282-4c24-a501-30309c87dc4d",
+    "85b21843-64d9-4e4a-a006-797bd7e8fa69",
+    "903279d4-bd94-4b3a-b492-bd9e99cb8e4d"
 ]
 
 # local wallet state tracking

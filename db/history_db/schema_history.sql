@@ -4,6 +4,7 @@ CREATE TABLE wallet_history (
     history_id         BIGSERIAL PRIMARY KEY,
     wallet_id          UUID NOT NULL,
     event_id 		   UUID NOT NULL,
+    event_version      INTEGER NOT NULL,
     event_type         INTEGER NOT NULL,
     amount             NUMERIC(18,2) NULL,
     reference_event_id UUID NULL,

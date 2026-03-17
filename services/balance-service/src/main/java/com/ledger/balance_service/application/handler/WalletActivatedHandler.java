@@ -2,10 +2,8 @@ package com.ledger.balance_service.application.handler;
 
 import com.ledger.balance_service.application.port.BalanceRepository;
 import com.ledger.balance_service.domain.model.WalletEvent;
-import com.ledger.balance_service.domain.model.WalletStatus;
+import com.ledger.balance_service.domain.enums.WalletStatus;
 import org.springframework.stereotype.Component;
-
-import java.util.UUID;
 
 @Component
 public class WalletActivatedHandler implements  EventHandler{
