@@ -22,11 +22,11 @@ This API reads from the history projection database (`wallet_history`) and suppo
 
 ## Query Parameters
 
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| limit | Integer | No | Number of records to return (default: 20) |
-| cursor | UUID | No | Cursor for pagination (last seen transactionId) |
-| type | Integer | No | Filter by event type (e.g., CREDIT, DEBIT, REVERSAL) |
+| Name | Type    | Required | Description                                                 |
+|------|---------|----------|-------------------------------------------------------------|
+| limit | Integer | No | Number of records to return (default: 20)                   |
+| cursor | String  | No | Cursor for pagination (last seen createdAt + transactionId) |
+| type | Integer | No | Filter by event type (e.g., CREDIT, DEBIT, REVERSAL)        |
 
 ---
 
@@ -44,20 +44,20 @@ GET /wallet/3fa85f64-5717-4562-b3fc-2c963f66afa6/transactions?limit=2
   "transactions": [
     {
       "transactionId": "e1",
-      "eventType": 5,
+      "eventType": "WALLET_DEBITED",
       "amount": 100.00,
       "referenceTransactionId": null,
       "createdAt": "2026-03-18T10:00:00Z"
     },
     {
       "transactionId": "e2",
-      "eventType": 6,
+      "eventType": "CREDIT_REVERSED",
       "amount": 50.00,
       "referenceTransactionId": null,
       "createdAt": "2026-03-18T09:59:00Z"
     }
   ],
-  "nextCursor": "e2"
+  "nextCursor": "2026-03-18T09:59:00Z_e2"
 }
 ```
 
@@ -88,7 +88,7 @@ GET /wallet/3fa85f64-5717-4562-b3fc-2c963f66afa6/transactions?limit=2
 ## Pagination Behavior
 
 - Results are ordered by: `event_version DESC`
-- Cursor represents: last seen `transactionId`
+- Cursor represents: last seen `createdAt + transactionId`
 
 **Next request example:**
 ```

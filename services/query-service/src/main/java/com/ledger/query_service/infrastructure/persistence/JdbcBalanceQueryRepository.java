@@ -1,11 +1,17 @@
 package com.ledger.query_service.infrastructure.persistence;
 
+import com.ledger.query_service.application.dto.response.TransactionBaseInfo;
+import com.ledger.query_service.application.dto.response.WalletSummary;
+import com.ledger.query_service.application.dto.response.WalletTransactions;
 import com.ledger.query_service.application.port.BalanceQueryRepository;
 import com.ledger.query_service.application.dto.response.WalletCurrentInfoResponse;
+import jakarta.annotation.Nullable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,4 +43,6 @@ public class JdbcBalanceQueryRepository implements BalanceQueryRepository {
                 ))
                 .optional();
     }
+
+
 }
