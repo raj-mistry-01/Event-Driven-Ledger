@@ -84,7 +84,6 @@ public class JdbcEventStore implements EventStore {
     ) {
 
         int currentVersion = readCurrentVersion(walletId);
-
         if (currentVersion != expectedVersion) {
             throw new OptimisticLockException(
                     ("version mismatch")
@@ -124,6 +123,7 @@ public class JdbcEventStore implements EventStore {
 
             }
             catch (DuplicateKeyException e){
+                System.out.println("dup");
                 throw new OptimisticLockException("version mismatch");
             }
             catch (Exception e) {
@@ -134,7 +134,6 @@ public class JdbcEventStore implements EventStore {
     }
 
 
-    @Cacheable(value = "wallet_version", key = "#walletId")
     @Override
     public int readCurrentVersion(UUID walletId) {
         Integer version = jdbc.sql("""
@@ -181,7 +180,6 @@ public class JdbcEventStore implements EventStore {
     }
 
 
-    @CachePut(value = "wallet_version", key = "#walletId")
     private int upsertStreamHead(UUID walletId, int newVersion) {
         jdbc.sql("""
                 INSERT INTO wallet_stream_head (wallet_id, last_version, updated_at)
