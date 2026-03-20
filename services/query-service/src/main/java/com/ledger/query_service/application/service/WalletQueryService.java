@@ -10,8 +10,10 @@ import com.ledger.query_service.application.port.BalanceQueryRepository;
 import com.ledger.query_service.application.port.HistoryQueryRepository;
 import com.ledger.query_service.application.dto.response.WalletCurrentInfoResponse;
 import com.ledger.query_service.application.dto.response.WalletHistorySummary;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,19 +22,41 @@ public class WalletQueryService {
 
     private final BalanceQueryRepository balanceRepository;
     private final HistoryQueryRepository historyRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     public WalletQueryService(
             BalanceQueryRepository balanceRepository,
-            HistoryQueryRepository historyRepository
+            HistoryQueryRepository historyRepository,
+            RedisTemplate<String,Object> redisTemplate
     ) {
         this.balanceRepository = balanceRepository;
         this.historyRepository = historyRepository;
+        this.redisTemplate = redisTemplate;
     }
 
 
+
     public WalletCurrentInfoResponse getWalletCurrentInfo(UUID walletId) {
-        return balanceRepository.getWalletCurrentInfo(walletId)
-                .orElseThrow(() -> new WalletNotFoundException("Wallet not found with id: " + walletId));
+        String key = "wallet:current:" + walletId;
+        WalletCurrentInfoResponse cached =
+                (WalletCurrentInfoResponse) redisTemplate.opsForValue().get(key);
+
+        if (cached != null) {
+            return cached;
+        }
+
+        WalletCurrentInfoResponse response =
+                balanceRepository.getWalletCurrentInfo(walletId)
+                        .orElseThrow(() -> new WalletNotFoundException("Wallet not found with id" + walletId));
+
+        try{
+            redisTemplate.opsForValue().set(key, response, Duration.ofSeconds(30));
+        }
+        catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+        return response;
     }
 
     public TransactionInformation getTransactionInfo(UUID transactionId) {
