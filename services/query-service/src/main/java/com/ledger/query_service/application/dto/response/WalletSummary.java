@@ -1,5 +1,6 @@
 package com.ledger.query_service.application.dto.response;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -14,5 +15,5 @@ public record WalletSummary (
         BigDecimal totalDebitReversals,
         int transactionCount,
         Instant lastTransactionAt
-){
+) implements Serializable {
 }

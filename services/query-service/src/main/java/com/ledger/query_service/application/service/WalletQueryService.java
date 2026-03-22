@@ -1,6 +1,7 @@
 package com.ledger.query_service.application.service;
 
 
+import com.ledger.query_service.infrastructure.cache.CacheKey;
 import com.ledger.query_service.application.dto.response.TransactionInformation;
 import com.ledger.query_service.application.dto.response.WalletSummary;
 import com.ledger.query_service.application.dto.response.WalletTransactions;
@@ -37,7 +38,7 @@ public class WalletQueryService {
 
 
     public WalletCurrentInfoResponse getWalletCurrentInfo(UUID walletId) {
-        String key = "wallet:current:" + walletId;
+        String key = CacheKey.WALLET_CURRENT.build(walletId);
         WalletCurrentInfoResponse cached =
                 (WalletCurrentInfoResponse) redisTemplate.opsForValue().get(key);
 
@@ -49,36 +50,62 @@ public class WalletQueryService {
                 balanceRepository.getWalletCurrentInfo(walletId)
                         .orElseThrow(() -> new WalletNotFoundException("Wallet not found with id" + walletId));
 
-        try{
-            redisTemplate.opsForValue().set(key, response, Duration.ofSeconds(30));
-        }
-        catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
+        redisTemplate.opsForValue().set(key, response, Duration.ofSeconds(30));
 
         return response;
     }
 
     public TransactionInformation getTransactionInfo(UUID transactionId) {
-        return historyRepository.getTransactionInfo(transactionId)
+        String key = CacheKey.TRANSACTION_INFO.build(transactionId);
+        TransactionInformation cached =
+                (TransactionInformation) redisTemplate.opsForValue().get(key);
+
+        if (cached != null) {
+            return cached;
+        }
+
+        TransactionInformation response = historyRepository.getTransactionInfo(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException("Transaction not found with id: " + transactionId));
+
+        redisTemplate.opsForValue().set(key, response, Duration.ofSeconds(30));
+
+        return response;
     }
 
     public WalletTransactions getWalletTransactions(UUID walletId, String cursor, Integer limit , Integer type) {
-        return historyRepository.getWalletTransactions(walletId, cursor , limit , type);
+//        String key = CacheKey.WALLET_TRANSACTIONS.build(walletId, cursor, limit, type);
+//        WalletTransactions cached =
+//                (WalletTransactions) redisTemplate.opsForValue().get(key);
+
+//        if (cached != null) {
+//            return cached;
+//        }
+
+        WalletTransactions response = historyRepository.getWalletTransactions(walletId, cursor , limit , type);
+
+//        redisTemplate.opsForValue().set(key, response, Duration.ofSeconds(30));
+
+        return response;
     }
 
     public WalletSummary getWalletSummary(UUID walletId) {
+        String key = CacheKey.WALLET_SUMMARY.build(walletId);
+        WalletSummary cached =
+                (WalletSummary) redisTemplate.opsForValue().get(key);
+
+        if (cached != null) {
+            return cached;
+        }
+
         Optional<WalletCurrentInfoResponse> walletCurrentInfo = balanceRepository.getWalletCurrentInfo(walletId);
         if (walletCurrentInfo.isEmpty()) {
             throw new WalletNotFoundException("Wallet not found with id: " + walletId);
         }
 
+        WalletHistorySummary historySummary = historyRepository.getWalletHistorySummary(walletId)
+                ;
 
-
-        WalletHistorySummary historySummary = historyRepository.getWalletHistorySummary(walletId);
-
-        return new WalletSummary(
+        WalletSummary response = new WalletSummary(
                 walletCurrentInfo.get().walletId(),
                 walletCurrentInfo.get().currentBalance(),
                 walletCurrentInfo.get().status(),
@@ -89,6 +116,10 @@ public class WalletQueryService {
                 historySummary.transactionCount(),
                 historySummary.lastTransactionAt()
         );
+
+        redisTemplate.opsForValue().set(key, response, Duration.ofSeconds(30));
+
+        return response;
     }
 
 }
