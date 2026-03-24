@@ -1,0 +1,45 @@
+@startuml
+
+scale max 1024 width
+scale max 800 height
+
+skinparam packageStyle rectangle
+
+package "Event Store" {
+  map "**Wallet 123**" as a123 {
+    v1 => WalletCreated
+    v2 => WalletDebited
+    v3..v99 => [97 events...]
+    v100 => WalletCredited
+    v101 => WalletDebited
+    v102 => WalletCredited
+    v103..v199 => [97 events...]
+    v200 => WalletCredited
+    v201 => <back:lightgreen>WalletDebited</back>
+    v202 => <back:lightgreen>WalletCredited</back>
+  }
+
+  map "**Wallet 123 Snapshot**" as as123 {
+    v200 => <back:lightblue>Snapshot v200</back>
+  }
+}
+
+map "**Wallet 123**" as ae123 {
+  v200 => <back:lightblue>Snapshot v200</back>
+  v201 => <back:lightgreen>WalletDebited</back>
+  v202 => <back:lightgreen>WalletCredited</back>
+}
+
+object "**Wallet123 Current State**" as acs123 {
+  id = 123
+  --
+  balance = 89.3
+  status = SUSPENDED
+}
+
+a123::v100 -> as123::v200
+a123::v200 -> as123::v200
+as123 -> ae123: Read events
+ae123 --> acs123: Restore current state
+
+@enduml

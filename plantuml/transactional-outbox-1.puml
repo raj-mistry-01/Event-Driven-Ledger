@@ -1,0 +1,46 @@
+@startuml
+
+scale max 1024 width
+scale max 800 height
+
+skinparam defaultTextAlignment center
+skinparam componentStyle rectangle
+
+skinparam database {
+  BorderColor Grey
+}
+
+component "Command Service" as orderService
+
+database "Database" {
+
+  rectangle "Transaction" #line.dashed {
+
+    component orderTbl [
+    **events** Table
+    |      |      |      |      |      |
+    |      |      |      |      |      |
+    |      |      |      |      |      |
+    ]
+
+    component outboxTbl [
+    **outbox** Table
+    |      |      |      |      |  status |
+    |      |      |      |      | 1     |
+    |      |      |      |      | 0    |
+    ]
+  }
+}
+
+component "Polling\nPublisher" as pollingPublisher
+component "Message\nBroker" as messageBroker
+
+orderTbl -[hidden]> outboxTbl
+
+orderService --> orderTbl: **1.** INSERT
+orderService --> outboxTbl: **2.** INSERT
+pollingPublisher -> outboxTbl: **3.** Read ""OUTBOX"" table\lon a recurring schedule
+pollingPublisher -> messageBroker: **4.** Publish\lmessage
+pollingPublisher -> outboxTbl: **5.** Mark as \lpublished records
+
+@enduml
