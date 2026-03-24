@@ -1,0 +1,78 @@
+@startuml
+
+top to bottom direction
+hide circle
+
+scale max 1024 width
+scale max 800 height
+
+' --- Events ---
+object "**WalletCreated**" as es1 {
+  event_id : e1-187
+  event_type : WalletCreated
+  event_payload : null
+  event_version : 1
+  event_timestamp : T1
+  wallet_id : w-123
+  client_id : c-45
+  client_request_id : req-001
+}
+
+object "**WalletCredited**" as es2 {
+  event_id : e2-244
+  event_type : WalletCredited
+  event_payload : { amount: 100 }
+  event_version : 2
+  event_timestamp : T2
+  wallet_id : w-123
+  client_id : c-45
+  client_request_id : req-002
+}
+
+object "**WalletClosed**" as es3 {
+  event_id : e3-301
+  event_type : WalletClosed
+  event_payload : null
+  event_version : 3
+  event_timestamp : T3
+  wallet_id : w-123
+  client_id : c-45
+  client_request_id : req-003
+}
+
+' --- Wallet States ---
+object "**Wallet**" as o1 {
+  wallet_id : w-123
+  <back:lightgreen>balance : 0</back>
+  <back:lightgreen>status : ACTIVE</back>
+  <back:lightgreen>updated_at : T1</back>
+}
+
+object "**Wallet**" as o2 {
+  wallet_id : w-123
+  <back:lightgreen>balance : 100</back>
+  <back:lightgreen>status : ACTIVE</back>
+  <back:lightgreen>updated_at : T2</back>
+}
+
+object "**Wallet**" as o3 {
+  wallet_id : w-123
+  <back:lightgreen>balance : 100</back>
+  <back:lightgreen>status : CLOSED</back>
+  <back:lightgreen>updated_at : T3</back>
+}
+
+
+es1 .down.> o1 : create
+es2 .down.> o2 : credit +100
+es3 .down.> o3 : close
+
+
+es1 .> es2
+es2 .> es3
+
+
+o1 -> o2
+o2 -> o3
+
+@enduml
