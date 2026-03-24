@@ -1,0 +1,24 @@
+@startuml
+left to right direction
+
+actor "Client System" as CS
+
+rectangle "Wallet Ledger System" {
+  usecase "Create Account" as UC1
+  usecase "Activate Account" as UC2
+  usecase "Suspend Account" as UC3
+  usecase "Close Account" as UC4
+  usecase "Credit Transaction" as UC5
+  usecase "Debit Transaction" as UC6
+  usecase "Reverse Transaction" as UC7
+}
+
+CS --> UC1
+CS --> UC2
+CS --> UC3
+CS --> UC4
+CS --> UC5
+CS --> UC6
+CS --> UC7
+
+@enduml
