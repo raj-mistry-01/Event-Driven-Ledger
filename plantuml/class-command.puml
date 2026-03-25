@@ -1,0 +1,263 @@
+@startuml
+
+scale max 1600 width
+scale max 1800 height
+left to right direction
+
+set separator none
+allowmixing
+
+package com.ledger.command_service {
+
+  package com.ledger.command_service.application {
+
+    package com.ledger.command_service.application.dto {
+        class RequestDTO
+        class ResponseDTO
+    }
+    package com.ledger.command_service.application.exception {
+    class GlobalExceptionHandler {
+          +handleException(Exception) : ResponseDTO
+        }
+    }
+    package com.ledger.command_service.application.execution {
+        class RetryExecutor {
+          {static} -MAX_RETRIES : int
+          +execute(Supplier<T>) : T
+        }
+    }
+    package com.ledger.command_service.application.handler {
+        class CreateWalletHandler {
+          +handle(CreateWalletCommand) : void
+        }
+        
+        class ActivateWalletHandler {
+          +handle(WalletLifeCycleCommand) : void
+        }
+        
+        class ActivateWalletHandler {
+          +handle(WalletLifeCycleCommand) : void
+        }
+        
+        class SuspendWalletHandler {
+          +handle(WalletLifeCycleCommand) : void
+        }
+        
+        class CloseWalletHandler {
+          +handle(WalletLifeCycleCommand) : void
+        }
+        
+        class CreditWalletHandler {
+          +handle(CreditWalletCommand) : void
+        }
+        
+        class DebitWalletHandler {
+          +handle(DebitWalletCommand) : void
+        }
+        
+        class ReverseTransactionHandler {
+          +handle(ReverseTransactionCommand) : void
+        }
+        
+    }
+
+    package com.ledger.command_service.application.port {
+         interface EventStore {
+          +loadEvents(UUID) : List<StoredEvent>
+          +appendEvents(UUID, int, List<StoredEvent>) : void
+          +loadEventsForSnapshot(UUID, int) : List<AggregateEvent>
+          +readCurrentVersion(UUID) : int
+          +findByEventId(UUID) : "Optional<StoredEvent>
+        }
+        interface OutboxStore {
+          +save(List<StoredEvent>) : void
+          +findPending(int) : List<OutboxEvent>
+          +markAsPublished(UUID) : void
+        }
+        
+        interface ProcessedCommandStore {
+          +find(String, String) : Optional<ProcessedCommand>
+          +markProcessed(String, String, UUID, UUID) : void
+        }
+        
+        interface ReversalTracker {
+          +recordReversal(UUID, UUID, UUID) : void
+        }
+        
+        interface SnapshotStore {
+          +load(UUID) : Optional<SnapshotWithVersion>
+          +upsert(UUID, int, SnapshotState) : void
+        }
+        
+    }
+
+    package com.ledger.command_service.application.service {
+        class OutboxRelayService {
+          -outboxStore : OutboxStore
+          -kafkaEventPublisher : KafkaEventPublisher
+          +processBatch(int, String) : void
+        }
+    }
+  }
+
+  package com.ledger.command_service.controller {
+    class WalletCommandController {
+      +createWallet(CreateWalletRequest) : CreateWalletResponse
+      +activateWallet(WalletLifecycleRequest) : WalletLifecycleResponse
+      +suspendWallet(WalletLifecycleRequest) : WalletLifecycleResponse
+      +closeWallet(WalletLifecycleRequest) : WalletLifecycleResponse
+      +creditWallet(CreditWalletRequest) : CreditWalletResponse
+      +debitWallet(DebitWalletRequest) : DebitWalletResponse
+      +reverseTransaction(ReverseTransactionRequest) : ReverseTransactionResponse
+    }
+  }
+
+  package com.ledger.command_service.domain {
+    package com.ledger.command_service.domain.aggregate {
+        class WalletAggregate {
+          {static} -OBJECT_MAPPER : ObjectMapper
+          {static} +applyEvents(SnapshotState, List<AggregateEvent>) : SnapshotState
+        }
+    }
+    package com.ledger.command_service.domain.command {
+    class CreateWalletCommand {
+      +clientId : String
+      +clientRequestId : String
+    }
+    
+    class CreditWalletCommand {
+      +walletId : UUID
+      +creditAmount : BigDecimal
+      +clientId : String
+      +clientRequestId : String
+    }
+    
+    class DebitWalletCommand {
+      +walletId : UUID
+      +debitAmount : BigDecimal
+      +clientId : String
+      +clientRequestId : String
+    }
+    
+    class ReverseTransactionCommand {
+      +walletId : UUID
+      +originalTransactionId : UUID
+      +clientId : String
+      +clientRequestId : String
+    }
+    
+    class WalletLifeCycleCommand {
+      +walletId : UUID
+      +clientId : String
+      +clientRequestId : String
+    }
+    }
+    
+    package com.ledger.command_service.domain.enums {
+        enum EventType {
+          WALLET_CREATED
+          WALLET_ACTIVATED
+          WALLET_SUSPENDED
+          WALLET_CLOSED
+          WALLET_CREDITED
+          WALLET_DEBITED
+          CREDIT_REVERSED
+          DEBIT_REVERSED
+          -code : int
+          +code() : int
+          {static} +fromCode(int) : EventType
+        }
+        
+        enum WalletStatus {
+          CREATED
+          ACTIVE
+          SUSPENDED
+          CLOSED
+          CREDITED
+          DEBITED
+        }
+    }
+    package com.ledger.command_service.domain.state {
+        class SnapshotState {
+          +balance : BigDecimal
+          +status : WalletStatus
+        
+          {static} +initial() : SnapshotState
+          +withBalance(BigDecimal) : SnapshotState
+          +withStatus(WalletStatus) : SnapshotState
+        }
+    }
+  }
+
+  package com.ledger.command_service.infrastructure {
+
+    package com.ledger.command_service.infrastructure.kafka {
+      package com.ledger.command_service.infrastructure.kafka.publisher {
+        class KafkaEventPublisher {
+          -kafkaTemplate : KafkaTemplate<String, String>
+          +publish(String, String, String) : void
+        }
+      }
+    }
+
+    package com.ledger.command_service.infrastructure.persistence {
+        class JdbcEventStore {
+          -jdbc : JdbcClient
+          -upsertStreamHead(UUID, int) : int
+        }
+        class JdbcOutboxStore {
+          -jdbc : JdbcClient
+          -objectMapper : ObjectMapper
+        }
+        class JdbcReversalTracker {
+          -jdbc : JdbcClient
+        }
+        class JdbcSnapshotStore {
+          -jdbc : JdbcClient
+          -objectMapper : ObjectMapper
+        }
+        class JdbcProcessedCommandStore {
+          -jdbc : JdbcClient
+        }
+    }
+    package com.ledger.command_service.infrastructure.scheduler{
+        class OutboxPoller {
+          -relayService : OutboxRelayService
+          +poll() : void
+        }
+    }
+    /'package com.ledger.command_service.infrastructure.snapshot'/
+  }
+}
+
+
+
+JdbcEventStore ..|> EventStore
+JdbcOutboxStore ..|> OutboxStore
+JdbcProcessedCommandStore ..|> ProcessedCommandStore
+JdbcReversalTracker ..|> ReversalTracker
+JdbcSnapshotStore ..|> SnapshotStore
+WalletCommandController --> CreateWalletHandler
+WalletCommandController --> ActivateWalletHandler
+WalletCommandController --> SuspendWalletHandler
+WalletCommandController --> CloseWalletHandler
+WalletCommandController --> CreditWalletHandler
+WalletCommandController --> DebitWalletHandler
+WalletCommandController --> ReverseTransactionHandler
+WalletCommandController --> RetryExecutor
+CreateWalletCommand <-- CreateWalletHandler
+WalletLifeCycleCommand <--ActivateWalletHandler
+WalletLifeCycleCommand <--SuspendWalletHandler  
+WalletLifeCycleCommand <-- CloseWalletHandler  
+CreditWalletCommand <--CreditWalletHandler  
+DebitWalletCommand <-- DebitWalletHandler 
+ReverseTransactionCommand <-- ReverseTransactionHandler
+WalletCommandController --> RequestDTO
+WalletCommandController --> ResponseDTO
+OutboxPoller --> OutboxRelayService
+OutboxStore <-- OutboxRelayService
+KafkaEventPublisher <-- OutboxRelayService
+WalletAggregate --> EventType
+SnapshotState --> WalletStatus
+
+@enduml
