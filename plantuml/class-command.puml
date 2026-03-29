@@ -1,6 +1,6 @@
 @startuml
 
-scale max 1600 width
+scale max 1800 width
 scale max 1800 height
 left to right direction
 
@@ -226,8 +226,14 @@ package com.ledger.command_service {
           +poll() : void
         }
     }
-    /'package com.ledger.command_service.infrastructure.snapshot'/
-  }
+    package com.ledger.command_service.infrastructure.snapshot {
+        class SnapshotPolicy {
+          -snapshotStore : SnapshotStore
+          -snapshotInterval : int
+          +maybeSnapshot(UUID, int, SnapshotState) : void
+        }
+    }
+  } 
 }
 
 
@@ -259,5 +265,6 @@ OutboxStore <-- OutboxRelayService
 KafkaEventPublisher <-- OutboxRelayService
 WalletAggregate --> EventType
 SnapshotState --> WalletStatus
+SnapshotPolicy --> SnapshotStore
 
 @enduml

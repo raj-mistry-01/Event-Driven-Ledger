@@ -1,0 +1,143 @@
+@startuml
+
+
+left to right direction
+set separator none
+allowmixing
+
+package com.ledger.balance_service {
+
+  package com.ledger.balance_service.application {
+    package com.ledger.balance_service.application.handler {
+        interface EventHandler {
+          +supportedEventType() : int
+          +handle(WalletEvent) : void
+        }
+        class EventHandlerRegistry {
+          -handlerMap : Map<Integer, EventHandler>
+          +EventHandlerRegistry(List<EventHandler>)
+          +getHandler(int) : EventHandler
+        }
+        class WalletCreatedHandler {
+          -balanceRepository : BalanceRepository
+        }
+        class WalletActivatedHandler {
+          -balanceRepository : BalanceRepository
+        }
+        
+        class WalletClosedHandler {
+          -balanceRepository : BalanceRepository
+        }
+        
+        class WalletSuspendedHandler {
+          -balanceRepository : BalanceRepository
+        }
+        
+        class WalletCreditedHandler {
+          -balanceRepository : BalanceRepository
+        }
+        
+        class WalletDebitedHandler {
+          -balanceRepository : BalanceRepository
+        }
+        
+        class CreditReversedHandler {
+          -balanceRepository : BalanceRepository
+        }
+        
+        class DebitReversedHandler {
+          -balanceRepository : BalanceRepository
+        }
+    }
+    package com.ledger.balance_service.application.port {
+        interface BalanceRepository {
+            +createWallet(UUID walletId)
+            +getBalance(UUID walletId) : BigDecimal
+            +updateBalance(UUID walletId, BigDecimal newBalance)
+            +updateStatus(UUID walletId, int status)
+          }
+        
+          interface ProjectionProgressRepository {
+            +getLastProcessedVersion(UUID walletId) : int
+            +updateLastProcessedVersion(UUID walletId, int version)
+          }
+    }
+    package com.ledger.balance_service.application.service {
+        class BalanceProjectionService {
+          -progressRepository : ProjectionProgressRepository
+          -handlerRegistry : EventHandlerRegistry
+          +processEvent(WalletEvent) : void
+        }
+    }
+  }
+
+  package com.ledger.balance_service.domain {
+    package com.ledger.balance_service.domain.enums {
+        enum WalletStatus {
+          CREATED
+          ACTIVE
+          SUSPENDED
+          CLOSED
+        }
+    }
+    package com.ledger.balance_service.domain.model {
+        class WalletEvent {
+            +outboxId : UUID
+            +eventId : UUID
+            +walletId : UUID
+            +eventType : int
+            +eventVersion : int
+            +eventPayload : JsonNode
+            +createdAt : Instant
+          }
+    }
+  }
+
+  package com.ledger.balance_service.infrastructure {
+    package com.ledger.balance_service.infrastructure.consumer {
+        class WalletEventConsumer {
+          -objectMapper : ObjectMapper
+          -projectionService : BalanceProjectionService
+          +consume(String, Acknowledgment) : void
+        }
+    }
+    package com.ledger.balance_service.infrastructure.persistence {
+        class JdbcBalanceRepository {
+            -JdbcClient : jdbc
+        }
+
+        class JdbcProjectionProgressRepository {
+           -JdbcClient : jdbc
+       }
+    }
+  }
+
+}
+
+JdbcBalanceRepository ..|> BalanceRepository
+JdbcProjectionProgressRepository ..|> ProjectionProgressRepository
+EventHandlerRegistry --> EventHandler
+WalletCreatedHandler ..|> EventHandler
+BalanceRepository <-- WalletCreatedHandler
+BalanceRepository <-- WalletActivatedHandler
+BalanceRepository <-- WalletClosedHandler
+BalanceRepository <-- WalletSuspendedHandler
+BalanceRepository <-- WalletCreditedHandler
+BalanceRepository <-- WalletDebitedHandler
+BalanceRepository <-- CreditReversedHandler
+BalanceRepository <-- DebitReversedHandler
+
+WalletCreatedHandler ..|> EventHandler
+WalletActivatedHandler ..|> EventHandler
+WalletClosedHandler ..|> EventHandler
+WalletSuspendedHandler ..|> EventHandler
+WalletCreditedHandler ..|> EventHandler
+WalletDebitedHandler ..|> EventHandler
+CreditReversedHandler ..|> EventHandler
+DebitReversedHandler ..|> EventHandler
+
+BalanceProjectionService --> EventHandlerRegistry
+BalanceProjectionService --> ProjectionProgressRepository
+WalletEventConsumer --> BalanceProjectionService
+
+@enduml
