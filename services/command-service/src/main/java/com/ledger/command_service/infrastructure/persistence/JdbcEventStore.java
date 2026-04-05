@@ -6,6 +6,8 @@ import com.ledger.command_service.application.port.EventStore;
 import com.ledger.command_service.application.port.StoredEvent;
 import org.apache.catalina.util.ToStringUtil;
 import org.postgresql.util.PGobject;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -82,7 +84,6 @@ public class JdbcEventStore implements EventStore {
     ) {
 
         int currentVersion = readCurrentVersion(walletId);
-
         if (currentVersion != expectedVersion) {
             throw new OptimisticLockException(
                     ("version mismatch")
@@ -122,6 +123,7 @@ public class JdbcEventStore implements EventStore {
 
             }
             catch (DuplicateKeyException e){
+                System.out.println("dup");
                 throw new OptimisticLockException("version mismatch");
             }
             catch (Exception e) {
@@ -146,6 +148,7 @@ public class JdbcEventStore implements EventStore {
 
         return version == null ? 0 : version;
     }
+
 
     @Override
     public Optional<StoredEvent> findByEventId(UUID eventId) {
@@ -177,7 +180,7 @@ public class JdbcEventStore implements EventStore {
     }
 
 
-    private void upsertStreamHead(UUID walletId, int newVersion) {
+    private int upsertStreamHead(UUID walletId, int newVersion) {
         jdbc.sql("""
                 INSERT INTO wallet_stream_head (wallet_id, last_version, updated_at)
                 VALUES (?, ?, ?)
@@ -188,6 +191,7 @@ public class JdbcEventStore implements EventStore {
                 """)
                 .params(walletId, newVersion, Timestamp.from(Instant.now()))
                 .update();
+        return newVersion;
     }
 
 }

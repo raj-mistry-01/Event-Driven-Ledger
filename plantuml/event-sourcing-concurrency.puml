@@ -1,0 +1,41 @@
+@startuml
+
+scale max 1024 width
+scale max 800 height
+
+skinparam defaultTextAlignment center
+skinparam componentStyle rectangle
+
+skinparam database {
+  BorderColor Grey
+}
+
+component "Command Service" as commandService
+
+database "Database" {
+
+  rectangle "Transaction" #line.dashed {
+
+    component aggregateTbl [
+    wallet_stream_head table
+    |= wallet_id |= last_version |=  |
+    | w123     |     2 |      |
+    |      |      |      |
+    ]
+
+    component eventTbl [
+    events table
+    |= event_id |= |=  |= |=  |
+    |   1   |      |      |      |      |
+    |   2   |      |      |      |      |
+    |   3   |      |      |      |      |
+    ]
+  }
+}
+
+aggregateTbl -[hidden]> eventTbl
+
+commandService --> aggregateTbl: **1.** UPDATE\llast_version
+commandService --> eventTbl: **2.** INSERT event
+
+@enduml

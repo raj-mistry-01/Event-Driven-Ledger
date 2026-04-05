@@ -67,7 +67,4 @@ public class CommandController {
     public Mono<ResponseEntity<String>> reverseController(@RequestBody String requestBody) {
         return callWebclient("http://command-service/wallet/reverse", requestBody);
     }
-
-
-
 }

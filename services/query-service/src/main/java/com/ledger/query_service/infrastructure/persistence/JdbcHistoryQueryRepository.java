@@ -28,21 +28,27 @@ public class JdbcHistoryQueryRepository implements HistoryQueryRepository {
 
     @Override
     public Optional<TransactionInformation> getTransactionInfo(UUID transactionId) {
-        return jdbcClient.sql("""
-                SELECT wallet_id, event_id, event_type, amount, reference_event_id, created_at 
-                FROM wallet_history
-                WHERE event_id = ?
-                """)
-                .param(transactionId)
-                .query((rs, rowNum) -> new TransactionInformation(
-                        UUID.fromString(rs.getString("event_id")),
-                        UUID.fromString(rs.getString("wallet_id")),
-                        EventType.fromCode(rs.getInt("event_type")).name(),
-                        rs.getBigDecimal("amount"),
-                        UUID.fromString(rs.getString("reference_event_id")),
-                        rs.getTimestamp("created_at").toInstant()
-                ))
-                .optional();
+        try {
+            return jdbcClient.sql("""
+                    SELECT wallet_id, event_id, event_type, amount, reference_event_id, created_at 
+                    FROM wallet_history
+                    WHERE event_id = ?
+                    """)
+                    .param(transactionId)
+                    .query((rs, rowNum) -> new TransactionInformation(
+                            rs.getObject("event_id", UUID.class),
+                            rs.getObject("wallet_id", UUID.class),
+                            EventType.fromCode(rs.getInt("event_type")).name(),
+                            rs.getBigDecimal("amount"),
+                            rs.getObject("reference_event_id", UUID.class),
+                            rs.getTimestamp("created_at").toInstant()
+                    ))
+                    .optional();
+        } catch (Exception ex) {
+            System.out.println("Failed to fetch transaction info: " + ex.getMessage());
+            ex.printStackTrace();
+            throw ex;
+        }
     }
 
     @Override

@@ -13,7 +13,7 @@ import java.util.UUID;
 @Repository
 public class JdbcReversalTracker implements ReversalTracker {
 
-    private static final Logger log = LoggerFactory.getLogger(JdbcReversalTracker.class);
+//    private static final Logger log = LoggerFactory.getLogger(JdbcReversalTracker.class);
     private final JdbcClient jdbc;
 
     public JdbcReversalTracker(JdbcClient jdbc) {
@@ -41,7 +41,7 @@ public class JdbcReversalTracker implements ReversalTracker {
                     .params(originalTransactionId, reversalEventId, walletId , Timestamp.from(Instant.now()))
                     .update();
         } catch (Exception e) {
-            log.error("Failed to record reversal: {}", e.getMessage(), e);
+//            log.error("Failed to record reversal: {}", e.getMessage(), e);
             throw e;
         }
     }

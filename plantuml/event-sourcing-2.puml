@@ -1,0 +1,36 @@
+@startuml
+
+scale max 1024 width
+scale max 800 height
+
+skinparam defaultTextAlignment center
+skinparam componentStyle rectangle
+
+component "Command Service" as os1
+
+component tbl [
+**WALLET** Table
+|= ""WALLET_ID"" |= ""BALANCE"" |= ""STATUS"" |= ""UPDATED_AT"" |
+| ... | ... | ... | ... |
+| w-123 | 100 | CLOSED | T3 |
+| ... | ... | ... | ... |
+]
+
+component "Command Service" as os2
+
+component es [
+**Event Store**
+|_<u>Wallet w-122</u>
+  |_...
+|_<u>Wallet w-123</u>
+  |_v1 WalletCreated
+  |_v2 WalletCredited (+100)
+  |_v3 WalletClosed
+|_<u>Wallet w-124</u>
+  |_...
+]
+
+os1 --> tbl: INSERT\lUPDATE\lDELETE
+os2 --> es: Append events\lRead events\lSubscribe to events
+
+@enduml

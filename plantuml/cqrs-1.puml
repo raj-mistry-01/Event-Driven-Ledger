@@ -1,0 +1,29 @@
+@startuml
+scale max 1024 width
+scale max 800 height
+skinparam defaultTextAlignment center
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam package {
+  BorderColor Grey
+}
+
+package "Service A" #line.dashed {
+  component API
+  component "Command Handler" as CommandHandler #lightblue
+  component "Domain Model" as DomainModel #lightblue
+  component "Event Handler" as EventHandler #lightblue
+  database "Event\nStore" as EventStore #lightblue
+  component Repositories #lightgreen
+  database "Read\nDatabase" as ReadDB #lightgreen
+}
+
+API -> CommandHandler : Commands
+API --> Repositories : Queries
+CommandHandler --> DomainModel : Read aggregate\nAppend new events
+DomainModel -down-> EventStore
+EventStore -down-> EventHandler : Get new events\nin near real-time
+EventHandler -up-> ReadDB : Update read model
+Repositories --> ReadDB : Execute queries
+
+@enduml

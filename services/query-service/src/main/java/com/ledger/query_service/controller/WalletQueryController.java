@@ -23,7 +23,7 @@ public class WalletQueryController {
 
         @GetMapping("/currentInfo/{id}")
         public ResponseEntity<WalletCurrentInfoResponse> getWalletById(@PathVariable UUID id) {
-                WalletCurrentInfoResponse response = walletQueryService.getWalletCurrentInfo(id);
+                        WalletCurrentInfoResponse response = walletQueryService.getWalletCurrentInfo(id);
                 return ResponseEntity.ok(response);
         }
 

@@ -1,0 +1,37 @@
+@startuml
+
+left to right direction
+
+hide circle
+
+scale max 1024 width
+scale max 800 height
+
+object "**Wallet**" as w1 {
+  wallet_id = 123
+  --
+  balance : 0.0
+  status = CREATED
+  updated_at : T1
+}
+
+object "**Order**" as w2 {
+  wallet_id = 123
+  --
+  <back:lightgreen>balance : 100.02</back>
+  <back:lightgreen>status = ACTIVE</back>
+  <back:lightgreen>updated_at = T2</back>
+}
+
+object "**Order**" as w3 {
+  wallet_id = 123
+  --
+  <back:lightgreen>balance : 56.3</back>
+  <back:lightgreen>status = CLOSED</back>
+  <back:lightgreen>updated_at = T3</back>
+}
+
+w1 --> w2
+w2 --> w3
+
+@enduml

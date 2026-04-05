@@ -1,0 +1,139 @@
+services:
+
+  # -------------------- POSTGRES DBS --------------------
+
+  postgres-command:
+    image: postgres:17-alpine
+    container_name: postgres-command
+    environment:
+      POSTGRES_DB: event_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: raj_mistry01
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-command:/var/lib/postgresql/data
+      - ./db/event_db/docker-entry:/docker-entrypoint-initdb.d
+
+  postgres-balance:
+    image: postgres:17-alpine
+    container_name: postgres-balance
+    environment:
+      POSTGRES_DB: balance_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: raj_mistry01
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-balance:/var/lib/postgresql/data
+      - ./db/balance_db/docker-entry:/docker-entrypoint-initdb.d
+
+  postgres-history:
+    image: postgres:17-alpine
+    container_name: postgres-history
+    environment:
+      POSTGRES_DB: history_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: raj_mistry01
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-history:/var/lib/postgresql/data
+      - ./db/history_db/docker-entry:/docker-entrypoint-initdb.d
+
+  # -------------------- REDIS --------------------
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  # -------------------- KAFKA --------------------
+
+  kafka:
+    image: confluentinc/cp-kafka:7.9.2
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+  # -------------------- SERVICES --------------------
+
+
+  command-service:
+    build: ./services/command-service
+#    container_name: command-service
+#    ports:
+#      - "8082:8082"
+    depends_on:
+      - postgres-command
+      - kafka
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+  balance-service:
+    build: ./services/balance-service
+    container_name: balance-service
+    ports:
+      - "8090:8090"
+    depends_on:
+      - postgres-balance
+      - kafka
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+  history-service:
+    build: ./services/history-service
+    container_name: history-service
+    ports:
+      - "8091:8091"
+    depends_on:
+      - postgres-history
+      - kafka
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+  query-service:
+    build: ./services/query-service
+#    container_name: query-service
+#    ports:
+#      - "8094:8094"
+    depends_on:
+      - postgres-balance
+      - postgres-history
+      - redis
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+  ledger-api-gateway:
+    build: ./services/ledger-api-gateway
+    ports:
+      - "8081:8081"
+    depends_on:
+      - command-service
+      - query-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+# -------------------- VOLUMES --------------------
+
+volumes:
+  pgdata-command:
+  pgdata-balance:
+  pgdata-history:
+  kafka-data:

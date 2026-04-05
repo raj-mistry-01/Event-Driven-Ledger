@@ -1,0 +1,12 @@
+for each micorservices : 
+docker build -t command-service .
+docker stop <container_id>
+docker rm <container_id>
+docker rmi command-service
+docker run -p 8082:8082 command-service (if not with -e property)
+docker run -p 8082:8082 -e SPRING_PROFILES_ACTIVE=docker command-service
+
+root file : docker-compose.yml
+docker-compose down -v (v means volumes if data persistent you want remove -v option)
+docker-compose up --build
+docker-compose up --scale command-service=3 --scale query-service=2
