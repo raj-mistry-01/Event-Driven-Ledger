@@ -1,0 +1,1419 @@
+LOCALHOST KAFKA + KAFKA CONNECT + DEBEZIUM SETUP
+======================================================
+
+Purpose
+-------
+This document explains how to reproduce the local CDC setup used by the
+Event-Driven Ledger project.
+
+The final flow is:
+
+    Spring Boot Command Service
+             |
+             | INSERT / DB transaction
+             v
+        PostgreSQL outbox
+             |
+             | PostgreSQL WAL
+             v
+          Debezium
+             |
+             v
+        Kafka Connect
+             |
+             v
+           Kafka
+             |
+             v
+     wallet-events consumer
+
+
+IMPORTANT ARCHITECTURAL CHANGE
+-------------------------------
+Previously the Command Service had an OutboxPoller:
+
+    Command Service
+        |
+        v
+    OutboxPoller
+        |
+        v
+    Kafka Producer
+        |
+        v
+      Kafka
+
+The new architecture disables that poller.
+
+Now the Command Service only performs the database transaction and writes
+the outbox row. PostgreSQL writes the change to its WAL. Debezium reads the
+WAL and publishes the outbox event to Kafka.
+
+    Command Service
+        |
+        v
+    PostgreSQL outbox
+        |
+        v
+    PostgreSQL WAL
+        |
+        v
+    Debezium
+        |
+        v
+      Kafka
+
+
+======================================================
+0. PREREQUISITES
+======================================================
+
+The local machine should have:
+
+1. PostgreSQL
+2. pgAdmin 4 (optional, useful for SQL)
+3. Kafka
+4. Kafka Connect
+5. Debezium PostgreSQL connector plugin
+6. Java 21 (for the Spring Boot services)
+
+The tested local versions were approximately:
+
+    Kafka                 4.3.1
+    Kafka Connect         4.3.1
+    Debezium PostgreSQL   3.6.1.Final
+    PostgreSQL             18
+    Java                   21
+
+Kafka Connect and Debezium are NOT two separate servers.
+
+Kafka Connect is the runtime/worker.
+
+Debezium PostgreSQL is a connector/plugin loaded by Kafka Connect.
+
+Therefore:
+
+    Kafka Connect Worker
+          |
+          +---- Debezium PostgreSQL Connector
+
+
+======================================================
+1. LOCAL DIRECTORY STRUCTURE
+======================================================
+
+Example Kafka installation:
+
+    C:\kafka
+
+Important directories/files:
+
+    C:\kafka\bin\windows\
+    C:\kafka\config\
+    C:\kafka\plugins\
+
+Create:
+
+    C:\kafka\plugins\debezium-connector-postgres\
+
+The Debezium PostgreSQL connector JARs go inside:
+
+    C:\kafka\plugins\debezium-connector-postgres\
+
+
+======================================================
+2. DEBEZIUM PLUGIN
+======================================================
+
+Download the Debezium PostgreSQL connector distribution.
+
+For this project the tested connector was:
+
+    Debezium PostgreSQL Connector 3.6.1.Final
+
+Place the connector JARs under:
+
+    C:\kafka\plugins\debezium-connector-postgres\
+
+The directory should contain JARs similar to:
+
+    debezium-api-3.6.1.Final.jar
+    debezium-config-3.6.1.Final.jar
+    debezium-connect-plugins-3.6.1.Final.jar
+    debezium-connector-common-3.6.1.Final.jar
+    debezium-connector-postgres-3.6.1.Final.jar
+    debezium-openlineage-api-3.6.1.Final.jar
+    debezium-util-3.6.1.Final.jar
+    postgresql-*.jar
+    protobuf-java-*.jar
+    sketches-java-*.jar
+
+Exact dependency filenames can vary by Debezium release.
+
+Do NOT use the Debezium source-code archive as the Kafka Connect plugin.
+Use the connector/binary distribution.
+
+
+======================================================
+3. KAFKA CONNECT PLUGIN PATH
+======================================================
+
+Kafka Connect must know where the Debezium plugin is located.
+
+Check:
+
+    C:\kafka\config\connect-standalone.properties
+
+The plugin path should include the Debezium plugin directory.
+
+Example:
+
+    plugin.path=C:/kafka/plugins
+
+or an appropriate path covering:
+
+    C:\kafka\plugins\debezium-connector-postgres
+
+Use a path format appropriate for the Kafka installation.
+
+On Windows, forward slashes can avoid some path parsing problems.
+
+IMPORTANT:
+The Connect worker must be restarted after changing plugin.path.
+
+
+======================================================
+4. POSTGRESQL CONFIGURATION FOR CDC
+======================================================
+
+Debezium PostgreSQL CDC uses PostgreSQL logical replication.
+
+The most important setting is:
+
+    wal_level = logical
+
+Check:
+
+    SHOW wal_level;
+
+Expected:
+
+    logical
+
+If it says:
+
+    replica
+
+logical replication is not enabled correctly for Debezium.
+
+Change the PostgreSQL configuration to:
+
+    wal_level = logical
+
+Then restart PostgreSQL.
+
+After restarting PostgreSQL, verify again:
+
+    SHOW wal_level;
+
+
+======================================================
+5. POSTGRESQL OUTBOX TABLE
+======================================================
+
+The project uses an outbox table.
+
+The important columns are:
+
+    outbox_id
+    event_id
+    event_type
+    event_payload
+    event_version
+    wallet_id
+    status
+    created_at
+    published_at
+
+Example conceptual structure:
+
+    outbox
+    ------------------------------------------------
+    outbox_id
+    event_id
+    event_type
+    event_payload       JSONB
+    event_version
+    wallet_id
+    status
+    created_at
+    published_at
+
+The Command Service inserts an event into this table as part of its
+database transaction.
+
+Example:
+
+    status = 0       -> pending
+    published_at     -> NULL
+
+IMPORTANT:
+With the Debezium architecture, the old poller no longer changes
+published_at.
+
+Keep the column for now. It may still be useful for future operational
+tracking, but it is not currently the mechanism used by Debezium to publish.
+
+
+======================================================
+6. POSTGRESQL PUBLICATION
+======================================================
+
+Debezium uses PostgreSQL logical replication.
+
+The project uses:
+
+    publication.name=ledger_outbox_publication
+
+The publication should contain:
+
+    public.outbox
+
+Check it with:
+
+    SELECT
+        pubname,
+        puballtables,
+        pubinsert,
+        pubupdate,
+        pubdelete
+    FROM pg_publication;
+
+Then:
+
+    SELECT
+        pubname,
+        schemaname,
+        tablename
+    FROM pg_publication_tables
+    WHERE pubname = 'ledger_outbox_publication';
+
+Expected:
+
+    ledger_outbox_publication | public | outbox
+
+
+======================================================
+7. POSTGRESQL REPLICATION SLOT
+======================================================
+
+Debezium uses a logical replication slot:
+
+    ledger_outbox_slot
+
+Check:
+
+    SELECT
+        slot_name,
+        plugin,
+        slot_type,
+        active,
+        active_pid
+    FROM pg_replication_slots
+    WHERE slot_name = 'ledger_outbox_slot';
+
+Expected after Debezium is running:
+
+    slot_name           ledger_outbox_slot
+    plugin              pgoutput
+    slot_type           logical
+    active              true
+
+The slot may be inactive before the Debezium task connects.
+
+Do not delete/recreate the slot during normal troubleshooting unless there is
+a specific reason to do so.
+
+
+======================================================
+8. KAFKA RESET / FRESH LOCAL START
+======================================================
+
+If a completely fresh local Kafka test is required:
+
+STOP Kafka Connect first.
+
+In the Kafka Connect terminal:
+
+    Ctrl + C
+
+STOP Kafka broker:
+
+    Ctrl + C
+
+Check ports:
+
+    netstat -ano | findstr :8083
+    netstat -ano | findstr :9092
+
+If an old process is still holding a port:
+
+    taskkill /PID <PID> /F
+
+For a fresh KRaft Kafka environment, remove:
+
+    C:\kafka\kraft-combined-logs
+
+Command:
+
+    cd C:\kafka
+
+    rmdir /s /q kraft-combined-logs
+
+Generate a new KRaft cluster ID:
+
+    bin\windows\kafka-storage.bat random-uuid
+
+Example output:
+
+    uN1GBtVaQXOlnkPk8wLd3w
+
+Format the storage:
+
+    bin\windows\kafka-storage.bat format --standalone -t <UUID> -c config\server.properties
+
+Then start Kafka:
+
+    bin\windows\kafka-server-start.bat config\server.properties
+
+Wait for Kafka to fully start before starting Connect.
+
+
+======================================================
+9. VERIFY KAFKA BROKER
+======================================================
+
+Kafka should be available at:
+
+    localhost:9092
+
+Check Kafka version:
+
+    bin\windows\kafka-topics.bat --version
+
+Create the project topic:
+
+    bin\windows\kafka-topics.bat --create --topic wallet-events --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
+
+Verify:
+
+    bin\windows\kafka-topics.bat --describe --topic wallet-events --bootstrap-server localhost:9092
+
+Expected:
+
+    PartitionCount: 3
+    ReplicationFactor: 1
+
+
+======================================================
+10. KAFKA CONNECT WORKER CONFIGURATION
+======================================================
+
+File:
+
+    C:\kafka\config\connect-standalone.properties
+
+Important basic settings:
+
+    bootstrap.servers=localhost:9092
+
+The plugin path must include the Debezium connector.
+
+Example:
+
+    plugin.path=C:/kafka/plugins
+
+For local standalone operation, Connect can use:
+
+    key.converter=org.apache.kafka.connect.json.JsonConverter
+    value.converter=org.apache.kafka.connect.json.JsonConverter
+
+or the converter configuration required by the worker/connector setup.
+
+IMPORTANT:
+The connector's own converter configuration used in this project is:
+
+    key.converter=org.apache.kafka.connect.storage.StringConverter
+    value.converter=org.apache.kafka.connect.json.JsonConverter
+
+    key.converter.schemas.enable=false
+    value.converter.schemas.enable=false
+
+
+======================================================
+11. START KAFKA CONNECT
+======================================================
+
+IMPORTANT:
+Do NOT start a second Connect worker if one is already running.
+
+Start the Kafka Connect worker:
+
+    cd C:\kafka
+
+    bin\windows\connect-standalone.bat .\config\connect-standalone.properties
+
+This starts the Connect runtime on the REST API port:
+
+    localhost:8083
+
+Verify:
+
+    curl http://localhost:8083/
+
+If it responds, Connect is running.
+
+Check installed connector plugins:
+
+    curl http://localhost:8083/connector-plugins
+
+You should see:
+
+    io.debezium.connector.postgresql.PostgresConnector
+
+with the installed Debezium version.
+
+
+======================================================
+12. IMPORTANT: CONNECT WORKER VS CONNECTOR
+======================================================
+
+This distinction is critical.
+
+Kafka Connect worker:
+
+    connect-standalone.bat
+             |
+             v
+        Kafka Connect
+             |
+             +--- plugins/connectors
+
+Debezium connector:
+
+    PostgresConnector
+             |
+             v
+    PostgreSQL logical WAL
+             |
+             v
+           Kafka
+
+Therefore, once Kafka Connect is already running, do NOT run:
+
+    connect-standalone.bat connect-standalone.properties debezium....
+
+just to "start Debezium".
+
+That would start another Connect worker.
+
+Instead, register the Debezium connector through the existing Connect REST API.
+
+
+======================================================
+13. DEBEZIUM CONNECTOR CONFIGURATION
+======================================================
+
+Project connector name:
+
+    ledger-outbox-connector
+
+The connector captures only:
+
+    public.outbox
+
+The tested configuration is:
+
+    connector.class=io.debezium.connector.postgresql.PostgresConnector
+    tasks.max=1
+
+    database.hostname=localhost
+    database.port=5432
+    database.user=postgres
+    database.password=<POSTGRES_PASSWORD>
+    database.dbname=event_db
+
+    plugin.name=pgoutput
+
+    slot.name=ledger_outbox_slot
+    publication.name=ledger_outbox_publication
+    publication.autocreate.mode=filtered
+
+    table.include.list=public.outbox
+
+    snapshot.mode=no_data
+
+    topic.prefix=ledger
+
+    transforms=outbox
+    transforms.outbox.type=io.debezium.transforms.outbox.EventRouter
+
+    transforms.outbox.table.field.event.id=event_id
+    transforms.outbox.table.field.event.key=wallet_id
+    transforms.outbox.table.field.event.payload=event_payload
+
+    transforms.outbox.route.by.field=event_id
+    transforms.outbox.route.topic.replacement=wallet-events
+
+    transforms.outbox.table.expand.json.payload=true
+    transforms.outbox.table.json.payload.null.behavior=optional_bytes
+
+    transforms.outbox.table.fields.additional.placement=
+        event_type:envelope:eventType,
+        event_version:envelope:eventVersion,
+        wallet_id:envelope:walletId,
+        event_id:envelope:eventId,
+        created_at:envelope:createdAt
+
+    key.converter=org.apache.kafka.connect.storage.StringConverter
+    value.converter=org.apache.kafka.connect.json.JsonConverter
+
+    key.converter.schemas.enable=false
+    value.converter.schemas.enable=false
+
+IMPORTANT:
+The configuration intentionally does NOT contain:
+
+    transforms.outbox.table.field.event.timestamp=created_at
+
+This was removed because it caused Kafka InvalidTimestampException in the
+local environment.
+
+The event's created_at is still preserved in the event envelope through:
+
+    event_type:envelope:eventType
+    event_version:envelope:eventVersion
+    wallet_id:envelope:walletId
+    event_id:envelope:eventId
+    created_at:envelope:createdAt
+
+but it is not used as the Kafka record timestamp.
+
+
+======================================================
+14. WHY route.by.field IS REQUIRED
+======================================================
+
+Debezium Outbox Event Router has default expectations for an outbox schema.
+
+The default routing field is commonly:
+
+    aggregatetype
+
+This project's table does NOT have an aggregatetype column.
+
+The actual schema has:
+
+    event_id
+    wallet_id
+    event_type
+    event_payload
+    ...
+
+Therefore this setting is required:
+
+    transforms.outbox.route.by.field=event_id
+
+Without it, the connector can fail with:
+
+    DataException: aggregatetype is not a valid field name
+
+We also force all events to the same Kafka topic:
+
+    transforms.outbox.route.topic.replacement=wallet-events
+
+
+======================================================
+15. CONNECTOR JSON FOR REST API
+======================================================
+
+When creating a connector with:
+
+    POST /connectors
+
+the JSON body MUST have this structure:
+
+    {
+      "name": "ledger-outbox-connector",
+      "config": {
+        "connector.class": "...",
+        ...
+      }
+    }
+
+Example file:
+
+    C:\kafka\config\ledger-outbox-connector.json
+
+Contents:
+
+    {
+      "name": "ledger-outbox-connector",
+      "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "tasks.max": "1",
+
+        "database.hostname": "localhost",
+        "database.port": "5432",
+        "database.user": "postgres",
+        "database.password": "<POSTGRES_PASSWORD>",
+        "database.dbname": "event_db",
+
+        "plugin.name": "pgoutput",
+        "slot.name": "ledger_outbox_slot",
+        "publication.name": "ledger_outbox_publication",
+        "publication.autocreate.mode": "filtered",
+
+        "table.include.list": "public.outbox",
+        "snapshot.mode": "no_data",
+        "topic.prefix": "ledger",
+
+        "transforms": "outbox",
+        "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+
+        "transforms.outbox.table.field.event.id": "event_id",
+        "transforms.outbox.table.field.event.key": "wallet_id",
+        "transforms.outbox.table.field.event.payload": "event_payload",
+
+        "transforms.outbox.route.by.field": "event_id",
+        "transforms.outbox.route.topic.replacement": "wallet-events",
+
+        "transforms.outbox.table.expand.json.payload": "true",
+        "transforms.outbox.table.json.payload.null.behavior": "optional_bytes",
+
+        "transforms.outbox.table.fields.additional.placement":
+          "event_type:envelope:eventType,event_version:envelope:eventVersion,wallet_id:envelope:walletId,event_id:envelope:eventId,created_at:envelope:createdAt",
+
+        "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+        "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+        "key.converter.schemas.enable": "false",
+        "value.converter.schemas.enable": "false"
+      }
+    }
+
+Replace:
+
+    <POSTGRES_PASSWORD>
+
+with the local PostgreSQL password.
+
+
+======================================================
+16. REGISTER THE CONNECTOR
+======================================================
+
+If the connector does not already exist:
+
+    curl -X POST http://localhost:8083/connectors -H "Content-Type: application/json" --data-binary "@C:\kafka\config\ledger-outbox-connector.json"
+
+If it already exists and the configuration needs updating, the PUT endpoint
+expects ONLY the config object, NOT the outer name/config wrapper.
+
+For PUT:
+
+    curl -X PUT http://localhost:8083/connectors/ledger-outbox-connector/config -H "Content-Type: application/json" --data-binary "@C:\kafka\config\ledger-outbox-connector.json"
+
+Therefore, for PUT, the JSON file must instead look like:
+
+    {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "tasks.max": "1",
+      ...
+    }
+
+POST format:
+
+    {
+      "name": "...",
+      "config": {
+        ...
+      }
+    }
+
+PUT format:
+
+    {
+      ...
+    }
+
+This difference is important.
+
+
+======================================================
+17. CHECK CONNECTOR STATUS
+======================================================
+
+Run:
+
+    curl http://localhost:8083/connectors/ledger-outbox-connector/status
+
+A healthy result must have BOTH:
+
+    connector.state = RUNNING
+
+and:
+
+    task 0 = RUNNING
+
+Do NOT proceed just because the connector itself says RUNNING.
+
+Example bad state:
+
+    connector = RUNNING
+    task 0    = FAILED
+
+This means the Connect worker knows about the connector but the actual
+Debezium task is not processing records.
+
+
+======================================================
+18. CHECK ACTUAL REGISTERED CONFIGURATION
+======================================================
+
+Run:
+
+    curl http://localhost:8083/connectors/ledger-outbox-connector/config
+
+Verify that the live configuration contains:
+
+    transforms.outbox.route.by.field=event_id
+
+and:
+
+    transforms.outbox.route.topic.replacement=wallet-events
+
+Do not assume that editing a local .properties file automatically changes
+a connector that was registered through the REST API.
+
+The REST API configuration is the configuration actually used by the
+running connector.
+
+
+======================================================
+19. START KAFKA CONSUMER
+======================================================
+
+Open a new terminal:
+
+    cd C:\kafka
+
+Start:
+
+    bin\windows\kafka-console-consumer.bat --topic wallet-events --bootstrap-server localhost:9092 --group fresh-cdc-test
+
+For a clean test, do NOT use --from-beginning.
+
+The terminal should initially sit and wait.
+
+For inspecting all retained messages:
+
+    bin\windows\kafka-console-consumer.bat --topic wallet-events --from-beginning --bootstrap-server localhost:9092
+
+For checking one partition:
+
+    bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic wallet-events --partition 0 --from-beginning
+
+
+======================================================
+20. CHECK WHETHER KAFKA HAS DATA
+======================================================
+
+Run:
+
+    bin\windows\kafka-get-offsets.bat --bootstrap-server localhost:9092 --topic wallet-events
+
+Example:
+
+    wallet-events:0:0
+    wallet-events:1:0
+    wallet-events:2:0
+
+means there are currently no records.
+
+If you see:
+
+    wallet-events:0:2
+    wallet-events:1:0
+    wallet-events:2:1
+
+records exist in partitions 0 and 2.
+
+This is useful for distinguishing:
+
+    Kafka has no data
+
+from:
+
+    Consumer is not displaying data.
+
+
+======================================================
+21. CLEAN CDC TEST: MANUAL SQL INSERT
+======================================================
+
+Before involving Spring Boot, it is useful to prove:
+
+    PostgreSQL -> WAL -> Debezium -> Kafka
+
+independently.
+
+Use a real existing wallet ID.
+
+Example lifecycle event:
+
+    INSERT INTO outbox (
+        outbox_id,
+        event_id,
+        event_type,
+        event_payload,
+        event_version,
+        wallet_id,
+        status,
+        created_at,
+        published_at
+    )
+    VALUES (
+        gen_random_uuid(),
+        gen_random_uuid(),
+        0,
+        NULL,
+        1,
+        '<EXISTING_WALLET_ID>'::uuid,
+        0,
+        NOW(),
+        NULL
+    );
+
+Then watch:
+
+    wallet-events
+
+Expected event shape:
+
+    {
+      "payload": null,
+      "eventType": 0,
+      "eventVersion": 1,
+      "walletId": "...",
+      "eventId": "...",
+      "createdAt": ...
+    }
+
+
+======================================================
+22. TEST JSON PAYLOAD
+======================================================
+
+To test the JSONB payload path:
+
+    INSERT INTO outbox (
+        outbox_id,
+        event_id,
+        event_type,
+        event_payload,
+        event_version,
+        wallet_id,
+        status,
+        created_at,
+        published_at
+    )
+    VALUES (
+        gen_random_uuid(),
+        gen_random_uuid(),
+        4,
+        '{"amount": 100}'::jsonb,
+        1,
+        '<EXISTING_WALLET_ID>'::uuid,
+        0,
+        NOW(),
+        NULL
+    );
+
+Expected Kafka message:
+
+    {
+      "payload": {
+        "amount": 100
+      },
+      "eventType": 4,
+      "eventVersion": 1,
+      "walletId": "...",
+      "eventId": "...",
+      "createdAt": ...
+    }
+
+This proves:
+
+    PostgreSQL JSONB
+        |
+        v
+    Debezium
+        |
+        v
+    Outbox Event Router
+        |
+        v
+    Kafka JSON payload
+
+
+======================================================
+23. FINAL REAL APPLICATION TEST
+======================================================
+
+Once the manual CDC test works, disable the old OutboxPoller in the
+Command Service.
+
+The old class was:
+
+    @Component
+    public class OutboxPoller {
+        ...
+    }
+
+Disable it:
+
+    //@Component
+
+The documented reason is:
+
+    // Legacy polling-based outbox relay is disabled for the real-time architecture.
+    // Previously, this poller periodically queried pending events and published them to Kafka.
+    // Now, Debezium captures new outbox rows directly from PostgreSQL WAL and publishes them to Kafka.
+    // This removes polling delays and avoids the Command Service acting as the Kafka producer.
+    // Keeping this class for now allows easy rollback to the previous polling-based approach.
+
+Rebuild:
+
+    .\mvnw clean package -DskipTests
+
+Run:
+
+    java -jar .\target\command-service-0.0.1-SNAPSHOT.jar
+
+Keep the Kafka consumer running.
+
+Then hit the real Spring Boot API.
+
+Expected flow:
+
+    HTTP API
+       |
+       v
+    Command Service
+       |
+       | DB transaction
+       v
+    PostgreSQL
+       |
+       | outbox INSERT
+       v
+    PostgreSQL WAL
+       |
+       v
+    Debezium
+       |
+       v
+    Kafka wallet-events
+       |
+       v
+    Consumer
+
+The Command Service should NOT call the old Kafka publisher for this test.
+
+
+======================================================
+24. WHY THE POLLER IS NOW REMOVED
+======================================================
+
+Old:
+
+    API
+     |
+     v
+    outbox
+     |
+     v
+    wait for poller
+     |
+     v
+    poll every N seconds
+     |
+     v
+    Kafka
+
+This introduces artificial latency and creates a polling throughput limit.
+
+New:
+
+    API
+     |
+     v
+    outbox
+     |
+     v
+    PostgreSQL WAL
+     |
+     v
+    Debezium
+     |
+     v
+    Kafka
+
+There is no 50-second polling interval.
+
+The Command Service does not need to know that Kafka is being used to
+transport the event.
+
+PostgreSQL is not itself publishing to Kafka.
+
+Instead:
+
+    PostgreSQL
+        |
+        | WAL
+        v
+    Debezium
+        |
+        | Kafka producer
+        v
+    Kafka
+
+
+======================================================
+25. COMMON PROBLEMS FOUND DURING THE LOCAL SETUP
+======================================================
+
+PROBLEM 1:
+    aggregatetype is not a valid field name
+
+CAUSE:
+Debezium Event Router defaulted to the aggregatetype field, but the
+project's outbox table does not have that column.
+
+FIX:
+
+    transforms.outbox.route.by.field=event_id
+
+
+PROBLEM 2:
+    InvalidTimestampException
+
+CAUSE:
+created_at was configured as the Kafka record timestamp:
+
+    transforms.outbox.table.field.event.timestamp=created_at
+
+The local timestamp was rejected by Kafka as being outside its accepted
+timestamp range.
+
+FIX USED FOR THIS PROJECT:
+Remove:
+
+    transforms.outbox.table.field.event.timestamp=created_at
+
+Keep created_at as an envelope field:
+
+    created_at:envelope:createdAt
+
+
+PROBLEM 3:
+    connector RUNNING but task FAILED
+
+CAUSE:
+Kafka Connect's connector state and task state are separate.
+
+Always inspect:
+
+    /connectors/ledger-outbox-connector/status
+
+Both connector and task must be RUNNING.
+
+
+PROBLEM 4:
+    PUT returns:
+
+    Cannot deserialize value of type java.lang.String from Object value
+    through reference chain: ["config"]
+
+CAUSE:
+The POST JSON format was used with the PUT endpoint.
+
+POST:
+
+    {
+      "name": "...",
+      "config": {
+        ...
+      }
+    }
+
+PUT:
+
+    {
+      ...
+    }
+
+
+PROBLEM 5:
+    curl cannot open JSON file
+
+CAUSE:
+Windows path/filename mismatch or file was not actually saved at the
+specified path.
+
+Verify:
+
+    dir C:\kafka\config\ledger-outbox-connector.json
+
+PowerShell:
+
+    Test-Path "C:\kafka\config\ledger-outbox-connector.json"
+
+
+PROBLEM 6:
+Kafka consumer shows nothing.
+
+Do not immediately assume the consumer is broken.
+
+Check:
+
+    bin\windows\kafka-get-offsets.bat --bootstrap-server localhost:9092 --topic wallet-events
+
+Then check:
+
+    curl http://localhost:8083/connectors/ledger-outbox-connector/status
+
+Then check PostgreSQL outbox rows and replication slot.
+
+
+======================================================
+26. RECOMMENDED CLEAN START ORDER
+======================================================
+
+For a fresh local run:
+
+    1. Start PostgreSQL
+    2. Verify:
+           SHOW wal_level;
+       must be:
+           logical
+
+    3. Start Kafka
+           bin\windows\kafka-server-start.bat config\server.properties
+
+    4. Create wallet-events if necessary
+           bin\windows\kafka-topics.bat --create ...
+
+    5. Start Kafka Connect
+           bin\windows\connect-standalone.bat .\config\connect-standalone.properties
+
+    6. Verify Connect:
+           curl http://localhost:8083/
+
+    7. Verify Debezium plugin:
+           curl http://localhost:8083/connector-plugins
+
+    8. Register Debezium connector:
+           POST /connectors
+
+    9. Check:
+           connector = RUNNING
+           task 0    = RUNNING
+
+   10. Check PostgreSQL replication slot:
+           active = true
+
+   11. Start Kafka consumer
+
+   12. Run manual SQL CDC test if desired
+
+   13. Start Command Service with OutboxPoller disabled
+
+   14. Hit Spring Boot API
+
+   15. Verify event appears in wallet-events
+
+
+======================================================
+27. FINAL LOCAL ARCHITECTURE
+======================================================
+
+                    ┌───────────────────────┐
+                    │  Spring Boot          │
+                    │  Command Service      │
+                    │  :8082                │
+                    └───────────┬───────────┘
+                                |
+                                | DB transaction
+                                |
+                                v
+                    ┌───────────────────────┐
+                    │      PostgreSQL       │
+                    │                       │
+                    │  business tables      │
+                    │  outbox               │
+                    └───────────┬───────────┘
+                                |
+                                | WAL
+                                v
+                    ┌───────────────────────┐
+                    │       Debezium        │
+                    │ PostgreSQL Connector  │
+                    └───────────┬───────────┘
+                                |
+                                | Kafka producer
+                                v
+                    ┌───────────────────────┐
+                    │        Kafka          │
+                    │   wallet-events       │
+                    │   3 partitions       │
+                    └───────────┬───────────┘
+                                |
+                                v
+                    ┌───────────────────────┐
+                    │ Balance Service       │
+                    │ / other consumers     │
+                    └───────────────────────┘
+
+
+======================================================
+28. WHAT SHOULD NOT BE RUN TOGETHER
+======================================================
+
+Do NOT accidentally create two Connect workers.
+
+One Connect worker:
+
+    localhost:8083
+
+is enough.
+
+Kafka:
+
+    localhost:9092
+
+Connect:
+
+    localhost:8083
+
+Debezium:
+
+    plugin/connector inside Kafka Connect
+
+Consumer:
+
+    separate terminal
+
+Command Service:
+
+    Spring Boot application
+
+PostgreSQL:
+
+    localhost:5432
+
+
+======================================================
+29. QUICK COMMAND CHEAT SHEET
+======================================================
+
+START KAFKA:
+
+    cd C:\kafka
+    bin\windows\kafka-server-start.bat config\server.properties
+
+
+START CONNECT:
+
+    cd C:\kafka
+    bin\windows\connect-standalone.bat .\config\connect-standalone.properties
+
+
+CHECK CONNECT:
+
+    curl http://localhost:8083/
+
+
+CHECK DEBEZIUM:
+
+    curl http://localhost:8083/connector-plugins
+
+
+REGISTER CONNECTOR:
+
+    curl -X POST http://localhost:8083/connectors -H "Content-Type: application/json" --data-binary "@C:\kafka\config\ledger-outbox-connector.json"
+
+
+CHECK CONNECTOR:
+
+    curl http://localhost:8083/connectors/ledger-outbox-connector/status
+
+
+CHECK CONFIG:
+
+    curl http://localhost:8083/connectors/ledger-outbox-connector/config
+
+
+CREATE TOPIC:
+
+    bin\windows\kafka-topics.bat --create --topic wallet-events --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
+
+
+LIST TOPICS:
+
+    bin\windows\kafka-topics.bat --list --bootstrap-server localhost:9092
+
+
+CHECK OFFSETS:
+
+    bin\windows\kafka-get-offsets.bat --bootstrap-server localhost:9092 --topic wallet-events
+
+
+START CONSUMER:
+
+    bin\windows\kafka-console-consumer.bat --topic wallet-events --bootstrap-server localhost:9092 --group fresh-cdc-test
+
+
+DESCRIBE TOPIC:
+
+    bin\windows\kafka-topics.bat --describe --topic wallet-events --bootstrap-server localhost:9092
+
+
+======================================================
+30. FINAL CHECKLIST
+======================================================
+
+Before declaring the local setup working:
+
+[ ] PostgreSQL is running
+[ ] PostgreSQL wal_level = logical
+[ ] Kafka is running on 9092
+[ ] wallet-events exists
+[ ] Kafka Connect is running on 8083
+[ ] Debezium PostgresConnector appears in /connector-plugins
+[ ] ledger_outbox_publication exists
+[ ] public.outbox is included in the publication
+[ ] ledger_outbox_slot exists
+[ ] Debezium connector exists
+[ ] connector state = RUNNING
+[ ] task 0 state = RUNNING
+[ ] replication slot active = true
+[ ] Kafka consumer is running
+[ ] OutboxPoller is disabled
+[ ] Command Service is running
+[ ] API request creates an outbox row
+[ ] Debezium captures that row
+[ ] wallet-events receives the event
+[ ] consumer displays the event
+
+When all of the above are true, the local CDC setup is complete.

@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+// this service is now diabled as we are using Debezium to relay events from the outbox table to Kafka
+
 @Service
 public class OutboxRelayService {
 

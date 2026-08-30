@@ -5,7 +5,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 
-@Component
+// Legacy polling-based outbox relay is disabled for the real-time architecture.
+// Previously, this poller periodically queried pending events and published them to Kafka.
+// Now, Debezium captures new outbox rows directly from PostgreSQL WAL and publishes them to Kafka.
+// This removes polling delays and avoids the Command Service acting as the Kafka producer.
+// Keeping this class for now allows easy rollback to the previous polling-based approach.
+
+
+//@Component
 public class OutboxPoller {
 
     private final OutboxRelayService relayService;
