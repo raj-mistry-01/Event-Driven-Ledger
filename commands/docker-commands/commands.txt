@@ -10,3 +10,39 @@ root file : docker-compose.yml
 docker-compose down -v (v means volumes if data persistent you want remove -v option)
 docker-compose up --build
 docker-compose up --scale command-service=3 --scale query-service=2
+docker-compose up --build --scale command-service=3 --scale query-service=2
+
+
+for only postgres command :
+to check if the postgres is running and the wal_level is set to logical
+
+docker compose up -d postgres-command
+docker exec -it postgres-command psql -U postgres -d event_db -c "SHOW wal_level;"
+
+
+STEP 3 — KAFKA DOCKER
+
+Start Kafka:
+docker compose up -d kafka
+
+Check Kafka:
+docker ps
+docker logs kafka --tail 50
+
+Create test topic:
+C:\kafka\bin\windows\kafka-topics.bat --create --topic docker-test --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+List topics:
+C:\kafka\bin\windows\kafka-topics.bat --list --bootstrap-server localhost:9092
+
+Start consumer:
+C:\kafka\bin\windows\kafka-console-consumer.bat --topic docker-test --from-beginning --bootstrap-server localhost:9092
+
+Start producer:
+C:\kafka\bin\windows\kafka-console-producer.bat --topic docker-test --bootstrap-server localhost:9092
+
+Docker services connect to:
+kafka:29092
+
+Windows host connects to:
+localhost:9092
