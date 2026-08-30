@@ -88,7 +88,7 @@ services:
 
   balance-service:
     build: ./services/balance-service
-    container_name: balance-service
+#    container_name: balance-service
     ports:
       - "8090:8090"
     depends_on:
@@ -99,7 +99,7 @@ services:
 
   history-service:
     build: ./services/history-service
-    container_name: history-service
+#    container_name: history-service
     ports:
       - "8091:8091"
     depends_on:
