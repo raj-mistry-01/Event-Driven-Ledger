@@ -28,8 +28,8 @@ CREDIT_URL = f"{BASE_URL}/credit"
 DEBIT_URL = f"{BASE_URL}/debit"
 
 WALLET_IDS = [
-    "e4f26885-5288-4451-afbd-40ec0164e28c",
-    "d5ff5813-e827-4bcc-bbed-5621c4ddc9be",
+    "ba629a4f-b476-4480-9e05-51695d0ae093",
+    "b9d50909-8bd0-4713-aff3-63764d450829",
 ]
 
 INITIAL_BALANCE = 100000

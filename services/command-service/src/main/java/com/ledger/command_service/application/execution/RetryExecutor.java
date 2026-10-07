@@ -24,10 +24,10 @@ public class RetryExecutor {
                 attempt++;
 
 
-                // 1..N strategy:
-                if (attempt >= MAX_RETRIES) {
-                    throw new RetryLaterException(); // exhausted retries
-                }
+//                // 1..N strategy:
+//                if (attempt >= MAX_RETRIES) {
+//                    throw new RetryLaterException(); // exhausted retries
+//                }
 
 
                 // fixed delay strategy:
@@ -55,6 +55,15 @@ public class RetryExecutor {
                 }
 
                 * */
+                long backoffTime = (long) Math.pow(2, attempt) * 100L; // Exponential backoff
+                long jitter = (long) (Math.random() * 100L); // Random jitter
+                long sleepTime = backoffTime + jitter;
+                try {
+                    Thread.sleep(sleepTime);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Retry interrupted", ie);
+                }
             }
         }
     }
