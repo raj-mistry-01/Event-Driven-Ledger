@@ -1,0 +1,67 @@
+scalar BigDecimal
+
+type Query {
+    wallet(id: ID!): Wallet
+    transaction(id: ID!): Transaction
+}
+
+type Wallet {
+    walletId: ID!
+    balance: BigDecimal!
+    status: String!
+    lastUpdatedAt: String!
+
+    summary: WalletSummary
+
+    transactions(
+        limit: Int
+        cursor: String
+        type: TransactionType
+    ): WalletTransactions
+}
+
+type Transaction {
+    transactionId: ID!
+    walletId: ID!
+    type: TransactionType!
+    amount: BigDecimal
+    referenceTransactionId: ID
+    createdAt: String!
+}
+
+type TransactionSummary {
+    transactionId: ID!
+    type: TransactionType!
+    amount: BigDecimal
+    referenceTransactionId: ID
+    createdAt: String!
+}
+
+type WalletTransactions {
+    transactions: [TransactionSummary!]!
+    nextCursor: String
+}
+
+type WalletSummary {
+    balance: BigDecimal!
+    status: String!
+
+    totalCredits: BigDecimal!
+    totalDebits: BigDecimal!
+    totalCreditReversals: BigDecimal!
+    totalDebitReversals: BigDecimal!
+
+    transactionCount: Int!
+    lastTransactionAt: String
+}
+
+enum TransactionType {
+    WALLET_CREATED
+    WALLET_ACTIVATED
+    WALLET_SUSPENDED
+    WALLET_CLOSED
+    WALLET_CREDITED
+    WALLET_DEBITED
+    CREDIT_REVERSED
+    DEBIT_REVERSED
+}

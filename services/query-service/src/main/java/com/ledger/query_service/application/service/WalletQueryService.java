@@ -99,7 +99,7 @@ public class WalletQueryService {
 
         Optional<WalletCurrentInfoResponse> walletCurrentInfo = balanceRepository.getWalletCurrentInfo(walletId);
         if (walletCurrentInfo.isEmpty()) {
-            throw new WalletNotFoundException("Wallet not found with id: " + walletId);
+            throw new WalletNotFoundException(walletId.toString());
         }
 
         WalletHistorySummary historySummary = historyRepository.getWalletHistorySummary(walletId)
