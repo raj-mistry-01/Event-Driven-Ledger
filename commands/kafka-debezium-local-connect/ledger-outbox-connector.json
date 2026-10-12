@@ -1,0 +1,48 @@
+{
+  "name": "ledger-outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+
+    "database.hostname": "postgres-command",
+    "database.port": "5432",
+    "database.user": "postgres",
+    "database.password": "raj_mistry01",
+    "database.dbname": "event_db",
+
+    "plugin.name": "pgoutput",
+
+    "slot.name": "ledger_outbox_slot",
+    "publication.name": "ledger_outbox_publication",
+    "publication.autocreate.mode": "filtered",
+
+    "table.include.list": "public.outbox",
+    "snapshot.mode": "no_data",
+    "topic.prefix": "ledger",
+
+    "transforms": "outbox,renamePayload",
+
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+
+    "transforms.outbox.table.field.event.id": "event_id",
+    "transforms.outbox.table.field.event.key": "wallet_id",
+    "transforms.outbox.table.field.event.payload": "event_payload",
+
+    "transforms.outbox.route.by.field": "event_id",
+    "transforms.outbox.route.topic.replacement": "wallet-events",
+
+    "transforms.outbox.table.expand.json.payload": "true",
+    "transforms.outbox.table.json.payload.null.behavior": "optional_bytes",
+
+    "transforms.outbox.table.fields.additional.placement": "outbox_id:envelope:outboxId,event_type:envelope:eventType,event_version:envelope:eventVersion,wallet_id:envelope:walletId,event_id:envelope:eventId,created_at:envelope:createdAt",
+
+    "transforms.renamePayload.type": "org.apache.kafka.connect.transforms.ReplaceField$Value",
+    "transforms.renamePayload.renames": "payload:eventPayload",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "false"
+  }
+}

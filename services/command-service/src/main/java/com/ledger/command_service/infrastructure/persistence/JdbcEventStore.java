@@ -123,7 +123,6 @@ public class JdbcEventStore implements EventStore {
 
             }
             catch (DuplicateKeyException e){
-                System.out.println("dup");
                 throw new OptimisticLockException("version mismatch");
             }
             catch (Exception e) {
