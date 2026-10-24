@@ -1,6 +1,7 @@
 package com.ledger.ledger_api_gateway.controller;
 
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +22,12 @@ import reactor.core.publisher.Mono;
 public class QueryController {
 
     private final WebClient webClient;
+
+    @Value("${spring.cloud.discovery.client.simple.instances.query-service[0].uri}")
+    private String queryServiceUrl;
+
+    @Value("${query-service.graphql-path:/graphql}")
+    private String graphqlPath;
 
     public QueryController(WebClient.Builder builder) {
         this.webClient = builder.build();
@@ -93,5 +102,19 @@ public class QueryController {
     @GetMapping("/{walletId}/summary")
     public Mono<ResponseEntity<String>> getWalletSummary(@PathVariable String walletId) {
         return callWebclientGet("http://query-service/wallet/" + walletId + "/summary");
+    }
+
+    @PostMapping(
+            value = "/graphql",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ResponseEntity<String>> graphql(
+            @RequestBody String requestBody) {
+
+        return callWebclient(
+                queryServiceUrl + graphqlPath,
+                requestBody
+        );
     }
 }

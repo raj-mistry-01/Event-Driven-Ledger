@@ -1,4 +1,4 @@
-remove folder : rmdir /s /q kraft-combined-logs
+remove folder : rmdir /s /q C:\tmp\kraft-combined-logs
 
 random uuid : bin\windows\kafka-storage.bat random-uuid
 

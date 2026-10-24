@@ -1,0 +1,53 @@
+
+syntax = "proto3";
+
+package policy.v1;
+
+option java_multiple_files = true;
+option java_package = "com.ledger.policy.v1";
+
+service PolicyService {
+  rpc EvaluateCommand(EvaluateCommandRequest)
+      returns (EvaluateCommandResponse);
+
+  rpc GetTransactionFrequencyPolicy(
+      GetTransactionFrequencyPolicyRequest
+  ) returns (GetTransactionFrequencyPolicyResponse);
+}
+
+enum TransactionType {
+  TRANSACTION_TYPE_UNSPECIFIED = 0;
+  CREDIT = 1;
+  DEBIT = 2;
+}
+
+message AmountLimitRequest {
+  TransactionType transaction_type = 1;
+  string amount = 2;
+}
+
+message TransactionFrequencyRequest {
+  string evaluation_time = 1;
+  TransactionType transaction_type = 2;
+  int64 recent_total_txns = 3;
+}
+
+message EvaluateCommandRequest {
+  oneof policy_context {
+    AmountLimitRequest amount_limit = 1;
+    TransactionFrequencyRequest transaction_frequency = 2;
+  }
+}
+
+message EvaluateCommandResponse {
+  bool allowed = 1;
+  repeated string denial_reasons = 2;
+}
+
+message GetTransactionFrequencyPolicyRequest {}
+
+message GetTransactionFrequencyPolicyResponse {
+  bool enabled = 1;
+  int64 max_transactions = 2;
+  int64 window_seconds = 3;
+}

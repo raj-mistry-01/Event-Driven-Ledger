@@ -1,0 +1,15 @@
+spec:
+  template:
+    spec:
+      containers:
+        - name: balance-service
+          image: balance-service:latest
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: docker
+
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-service:5432/balance_db
+
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: kafka-service:9092

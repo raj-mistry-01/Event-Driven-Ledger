@@ -1,180 +1,189 @@
-services:
+  services:
 
-  # -------------------- POSTGRES DBS --------------------
+    # -------------------- POSTGRES DBS --------------------
 
-  postgres-command:
-    image: postgres:17-alpine
-    container_name: postgres-command
-    command:
-      - postgres
-      - -c
-      - wal_level=logical
-    environment:
-      POSTGRES_DB: event_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: raj_mistry01
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata-command:/var/lib/postgresql/data
-      - ./db/event_db/docker-entry:/docker-entrypoint-initdb.d
+    postgres-command:
+      image: postgres:17-alpine
+      container_name: postgres-command
+      command:
+        - postgres
+        - -c
+        - wal_level=logical
+      environment:
+        POSTGRES_DB: event_db
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: raj_mistry01
+      ports:
+        - "5432:5432"
+      volumes:
+        - pgdata-command:/var/lib/postgresql/data
+        - ./db/event_db/docker-entry:/docker-entrypoint-initdb.d
 
-  postgres-balance:
-    image: postgres:17-alpine
-    container_name: postgres-balance
-    environment:
-      POSTGRES_DB: balance_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: raj_mistry01
-    ports:
-      - "5433:5432"
-    volumes:
-      - pgdata-balance:/var/lib/postgresql/data
-      - ./db/balance_db/docker-entry:/docker-entrypoint-initdb.d
+    postgres-balance:
+      image: postgres:17-alpine
+      container_name: postgres-balance
+      environment:
+        POSTGRES_DB: balance_db
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: raj_mistry01
+      ports:
+        - "5433:5432"
+      volumes:
+        - pgdata-balance:/var/lib/postgresql/data
+        - ./db/balance_db/docker-entry:/docker-entrypoint-initdb.d
 
-  postgres-history:
-    image: postgres:17-alpine
-    container_name: postgres-history
-    environment:
-      POSTGRES_DB: history_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: raj_mistry01
-    ports:
-      - "5434:5432"
-    volumes:
-      - pgdata-history:/var/lib/postgresql/data
-      - ./db/history_db/docker-entry:/docker-entrypoint-initdb.d
+    postgres-history:
+      image: postgres:17-alpine
+      container_name: postgres-history
+      environment:
+        POSTGRES_DB: history_db
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: raj_mistry01
+      ports:
+        - "5434:5432"
+      volumes:
+        - pgdata-history:/var/lib/postgresql/data
+        - ./db/history_db/docker-entry:/docker-entrypoint-initdb.d
 
-  # -------------------- REDIS --------------------
+    # -------------------- REDIS --------------------
 
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
+    redis:
+      image: redis:7-alpine
+      container_name: redis
+      ports:
+        - "6379:6379"
 
-  # -------------------- KAFKA --------------------
+    # -------------------- KAFKA --------------------
 
-  kafka:
-    image: confluentinc/cp-kafka:7.9.2
-    container_name: kafka
+    kafka:
+      image: confluentinc/cp-kafka:7.9.2
+      container_name: kafka
 
-    ports:
-      - "9092:9092"
+      ports:
+        - "9092:9092"
 
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      environment:
+        KAFKA_NODE_ID: 1
+        KAFKA_PROCESS_ROLES: broker,controller
+        KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
 
-      KAFKA_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://kafka:29093
+        KAFKA_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://kafka:29093
 
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+        KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
 
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+        KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
 
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+        KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+        KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
 
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
+        KAFKA_LOG_DIRS: /var/lib/kafka/data
 
-      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+        CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
 
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-    volumes:
-      - kafka-data:/var/lib/kafka/data
+      volumes:
+        - kafka-data:/var/lib/kafka/data
 
-  kafka-connect:
-    image: quay.io/debezium/connect:3.6
-    container_name: kafka-connect
-    depends_on:
-      - kafka
-      - postgres-command
-    ports:
-      - "8083:8083"
-    environment:
-      BOOTSTRAP_SERVERS: kafka:29092
-      GROUP_ID: 1
-      CONFIG_STORAGE_TOPIC: connect-configs
-      OFFSET_STORAGE_TOPIC: connect-offsets
-      STATUS_STORAGE_TOPIC: connect-status
-      CONFIG_STORAGE_REPLICATION_FACTOR: 1
-      OFFSET_STORAGE_REPLICATION_FACTOR: 1
-      STATUS_STORAGE_REPLICATION_FACTOR: 1
+    kafka-connect:
+      image: quay.io/debezium/connect:3.6
+      container_name: kafka-connect
+      depends_on:
+        - kafka
+        - postgres-command
+      ports:
+        - "8083:8083"
+      environment:
+        BOOTSTRAP_SERVERS: kafka:29092
+        GROUP_ID: 1
+        CONFIG_STORAGE_TOPIC: connect-configs
+        OFFSET_STORAGE_TOPIC: connect-offsets
+        STATUS_STORAGE_TOPIC: connect-status
+        CONFIG_STORAGE_REPLICATION_FACTOR: 1
+        OFFSET_STORAGE_REPLICATION_FACTOR: 1
+        STATUS_STORAGE_REPLICATION_FACTOR: 1
 
-  debezium-register:
-    image: curlimages/curl:8.11.1
-    container_name: debezium-register
-    depends_on:
-      - kafka-connect
-    volumes:
-      - ./commands/kafka-debezium-local-connect:/config:ro
-    entrypoint: [ "/bin/sh", "/config/register.sh" ]
-    restart: "no"
+    debezium-register:
+      image: curlimages/curl:8.11.1
+      container_name: debezium-register
+      depends_on:
+        - kafka-connect
+      volumes:
+        - ./commands/kafka-debezium-local-connect:/config:ro
+      entrypoint: [ "/bin/sh", "/config/register.sh" ]
+      restart: "no"
 
-  # -------------------- SERVICES --------------------
+    # -------------------- SERVICES --------------------
 
 
-  command-service:
-    build: ./services/command-service
-#    container_name: command-service
-#    ports:
-#      - "8082:8082"
-    depends_on:
-      - postgres-command
-      - kafka
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
+    command-service:
+      build: ./services/command-service
+  #    container_name: command-service
+  #    ports:
+  #      - "8082:8082"
+      depends_on:
+        - postgres-command
+        - kafka
+      environment:
+        SPRING_PROFILES_ACTIVE: docker
 
-  balance-service:
-    build: ./services/balance-service
-    container_name: balance-service
-#    ports:
-#      - "8090:8090"
-    depends_on:
-      - postgres-balance
-      - kafka
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
+    balance-service:
+      build: ./services/balance-service
+      container_name: balance-service
+  #    ports:
+  #      - "8090:8090"
+      depends_on:
+        - postgres-balance
+        - kafka
+      environment:
+        SPRING_PROFILES_ACTIVE: docker
 
-  history-service:
-    build: ./services/history-service
-    container_name: history-service
-#    ports:
-#      - "8091:8091"
-    depends_on:
-      - postgres-history
-      - kafka
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
+    history-service:
+      build: ./services/history-service
+      container_name: history-service
+  #    ports:
+  #      - "8091:8091"
+      depends_on:
+        - postgres-history
+        - kafka
+      environment:
+        SPRING_PROFILES_ACTIVE: docker
 
-  query-service:
-    build: ./services/query-service
-#    container_name: query-service
-#    ports:
-#      - "8094:8094"
-    depends_on:
-      - postgres-balance
-      - postgres-history
-      - redis
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
+    query-service:
+      build: ./services/query-service
+  #    container_name: query-service
+  #    ports:
+  #      - "8094:8094"
+      depends_on:
+        - postgres-balance
+        - postgres-history
+        - redis
+      environment:
+        SPRING_PROFILES_ACTIVE: docker
 
-  ledger-api-gateway:
-    build: ./services/ledger-api-gateway
-    ports:
-      - "8081:8081"
-    depends_on:
-      - command-service
-      - query-service
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
+    ledger-api-gateway:
+      build: ./services/ledger-api-gateway
+      ports:
+        - "8081:8081"
+      depends_on:
+        - command-service
+        - query-service
+      environment:
+        SPRING_PROFILES_ACTIVE: docker
 
-# -------------------- VOLUMES --------------------
+    policy-service:
+      build: ./services/policy-service
+      container_name: policy-service
+      ports:
+        - "9090:9090"
+      environment:
+        MONGODB_URI: ${MONGODB_URI}
+        GRPC_PORT: 9090
 
-volumes:
-  pgdata-command:
-  pgdata-balance:
-  pgdata-history:
-  kafka-data:
+  # -------------------- VOLUMES --------------------
+
+  volumes:
+    pgdata-command:
+    pgdata-balance:
+    pgdata-history:
+    kafka-data:

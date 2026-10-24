@@ -11,12 +11,16 @@ import com.ledger.command_service.domain.command.CreditWalletCommand;
 import com.ledger.command_service.domain.enums.EventType;
 import com.ledger.command_service.domain.enums.WalletStatus;
 import com.ledger.command_service.domain.state.SnapshotState;
+import com.ledger.command_service.infrastructure.policy.PolicyGrpcClient;
 import com.ledger.command_service.infrastructure.snapshot.SnapshotPolicy;
+import com.ledger.policy.v1.*;
+import org.apache.kafka.common.errors.PolicyViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +34,7 @@ public class CreditWalletHandler {
     private final ProcessedCommandStore processedCommandStore;
     private final SnapshotPolicy snapshotPolicy;
     private final ObjectMapper objectMapper;
+    private final PolicyGrpcClient policyGrpcClient;
 
     public CreditWalletHandler(
             EventStore eventStore,
@@ -37,7 +42,8 @@ public class CreditWalletHandler {
             OutboxStore outboxStore,
             ProcessedCommandStore processedCommandStore,
             SnapshotPolicy snapshotPolicy,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            PolicyGrpcClient policyGrpcClient
     ) {
         this.eventStore = eventStore;
         this.snapshotStore = snapshotStore;
@@ -45,6 +51,7 @@ public class CreditWalletHandler {
         this.processedCommandStore = processedCommandStore;
         this.snapshotPolicy = snapshotPolicy;
         this.objectMapper = objectMapper;
+        this.policyGrpcClient = policyGrpcClient;
     }
 
     @Transactional
@@ -106,6 +113,53 @@ public class CreditWalletHandler {
 
         if (currentState.status() == WalletStatus.SUSPENDED) {
             throw new WalletSuspendedException(command.walletId().toString());
+        }
+
+        System.out.println("yesss");
+
+
+// 6️⃣ Policy evaluation — before creating any event
+
+// A. Evaluate the credit amount limit
+        EvaluateCommandRequest amountRequest =
+                EvaluateCommandRequest.newBuilder()
+                        .setAmountLimit(
+                                AmountLimitRequest.newBuilder()
+                                        .setTransactionType(TransactionType.CREDIT)
+                                        .setAmount(command.creditAmount().toPlainString())
+                                        .build()
+                        )
+                        .build();
+
+        EvaluateCommandResponse amountDecision =
+                policyGrpcClient.evaluateCommand(amountRequest);
+
+        System.out.println(amountDecision);
+
+        if (!amountDecision.getAllowed()) {
+            throw new PolicyDeniedException(
+                    String.join("; ", amountDecision.getDenialReasonsList())
+            );
+        }
+
+// B. Fetch the authoritative frequency-policy configuration
+        GetTransactionFrequencyPolicyResponse frequencyPolicy =
+                policyGrpcClient.getTransactionFrequencyPolicy();
+
+// If disabled, no frequency evaluation is necessary.
+        if (frequencyPolicy.getEnabled()) {
+            Instant evaluationTime = Instant.now();
+            Instant windowStart = evaluationTime.minus(
+                    frequencyPolicy.getWindowSeconds(),
+                    ChronoUnit.SECONDS
+            );
+
+            // TODO: Query authoritative PostgreSQL events for this wallet
+            // within [windowStart, evaluationTime], counting only successful
+            // credits, debits, and reversals.
+
+            // Do not call EvaluateCommand for frequency until the count query
+            // has been implemented and verified.
         }
 
 
